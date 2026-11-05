@@ -1,5 +1,71 @@
 --!strict
+local parts = {}
+local models = {}
+local models_folder = {}
 
+local json_ = game:HttpGet("https://offsets.imtheo.lol/offsets.json")
+local decoded = crypt.json.decode(json_)
+local offsets = decoded.Offsets
+local b_p = offsets.BasePart --bp omgggggg
+local prim = b_p.Primitive
+local flags = offsets.Primitive.Flags
+local prim_flags = offsets.PrimitiveFlags
+local anchored = prim_flags.Anchored
+
+local function anchor_check(instance: BasePart)
+	local part_prim = memory.readu64(instance, prim)
+	local flags = memory.readu64(part_prim, flags)
+	local anchored = memory.readu8(flags, anchored)
+	if anchored == 0 then
+		return false
+	elseif anchored == 1 then
+		return true
+	end
+end
+
+
+local function find_folder(instance)
+	local p = instance.Parent
+	if p.ClassName == "Folder" then
+		return p
+	elseif p.ClassName == "Workspace" then
+		return workspace
+	else
+		return find_folder(p)
+	end
+end
+
+local function cache()
+	for _, instance in pairs(game.Workspace:GetDescendants()) do
+		if instance:IsA("BasePart") and instance.ClassName ~= "Terrain" and instance.ClassName ~= "Seat" and not instance:FindFirstChild("Humanoid") then
+			if anchor_check then
+				local pos = instance.Position
+				local size = instance.Size
+				local right_vec = instance.RightVector
+				local up_vec = instance.UpVector
+				local look_vec = instance.LookVector
+				table.insert(parts, {
+					pos = pos,
+					instance = instance,
+					size = size,
+					right_vec = right_vec,
+					up_vec = up_vec,
+					look_vec = look_vec
+				})
+			end
+		elseif instance:IsA("Model") and instance:FindFirstChild("Humanoid") then
+			local folder = find_folder(instance)
+			local instance = instance.PrimaryPart
+			if not instance then return end
+			--finish this bla bla bla
+		end
+	end
+end	
+if _G.cache then
+	send_notification("caching static parts, thisll take a while depending on the games size", "info")
+	cache()
+	send_notification("done", "info")
+end
 local function determine_hit(
 	origin: vector, 
 	direction: vector, 
@@ -74,74 +140,85 @@ end
 
 local WorkspaceRaycaster = {}
 
-function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: any?)
+function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: any?, instance_type: string)
 	local closest_hit = nil
 	local min_dist = math.huge
 	
 	local ray_length = vector.magnitude(direction)
 	if ray_length == 0 then return nil end
-	
-	for _, part in ipairs(workspace:GetDescendants()) do
-		if part:IsA("BasePart") and part.ClassName ~= "Terrain" and not part:IsA("Seat") then
-			local filter_passed = true
-			if params and params.FilterDescendantsInstances then
-				for _, ignoredInstance in ipairs(params.FilterDescendantsInstances) do
-					if part == ignoredInstance or part:IsDescendantOf(ignoredInstance) then
-						filter_passed = false
-						break
-					end
+	local table_ = workspace:GetDescendants()
+	if instance_type == "BaseParts" then
+		table_ = parts
+	elseif instance_type == "Models" then
+		table_ = models
+	elseif instance_type == "all" then
+		table_ = grouped
+	end
+	for _, part in ipairs(table_) do
+		local pos = part.pos
+		local size = part.size
+		local rv = part.right_vec
+		local uv = part.up_vec
+		local lv = part.look_vec
+		local instance = part.instance
+		local filter_passed = true
+		if params and params.FilterDescendantsInstances then
+			for _, ignoredInstance in ipairs(params.FilterDescendantsInstances) do
+				if instance == ignoredInstance or instance:IsDescendantOf(ignoredInstance) then
+					filter_passed = false
+					break
 				end
 			end
+		end
+		
+		if filter_passed then
+			local t, local_normal = determine_hit(
+				origin, 
+				direction, 
+				size, 
+				pos, 
+				rv, 
+				uv, 
+				lv
+			)
 			
-			if filter_passed then
-				local t, local_normal = determine_hit(
-					origin, 
-					direction, 
-					part.Size, 
-					part.Position, 
-					part.RightVector, 
-					part.UpVector, 
-					part.LookVector
-				)
-				
-				if t then
-					local distance = t * ray_length
-					if distance < min_dist then
-						min_dist = distance
+			if t then
+				local distance = t * ray_length
+				if distance < min_dist then
+					min_dist = distance
+					
+					local local_origin_rel = origin - pos
+					local local_orig = vector.create(
+						vector.dot(local_origin_rel, rv), 
+						vector.dot(local_origin_rel, uv), 
+						-vector.dot(local_origin_rel, lv)
+					)
+					local local_dir_rel = vector.create(
+						vector.dot(direction, rv), 
+						vector.dot(direction, uv), 
+						-vector.dot(direction, lv)
+					)
+					local local_hit_pos = local_orig + (local_dir_rel * t)
+					
+					local hit_pos = pos
+						+ (rv * local_hit_pos.x) 
+						+ (uv * local_hit_pos.y) 
+						+ (-lv * local_hit_pos.z)
 						
-						local local_origin_rel = origin - part.Position
-						local local_orig = vector.create(
-							vector.dot(local_origin_rel, part.RightVector), 
-							vector.dot(local_origin_rel, part.UpVector), 
-							-vector.dot(local_origin_rel, part.LookVector)
-						)
-						local local_dir_rel = vector.create(
-							vector.dot(direction, part.RightVector), 
-							vector.dot(direction, part.UpVector), 
-							-vector.dot(direction, part.LookVector)
-						)
-						local local_hit_pos = local_orig + (local_dir_rel * t)
+					local world_normal = (rv * local_normal.x) 
+						+ (uv * local_normal.y) 
+						+ (-lv * local_normal.z)
+					
+					closest_hit = {
+						Instance = instance,
+						Parent = instance.Parent,
+						Position = hit_pos,
+						Normal = world_normal,
+						Distance = distance,
+						Instance_name = instance.Name,
+						Parent_name = instance.Parent.Name,
 						
-						local hit_pos = part.Position 
-							+ (part.RightVector * local_hit_pos.x) 
-							+ (part.UpVector * local_hit_pos.y) 
-							+ (-part.LookVector * local_hit_pos.z)
-							
-						local world_normal = (part.RightVector * local_normal.x) 
-							+ (part.UpVector * local_normal.y) 
-							+ (-part.LookVector * local_normal.z)
-						
-						closest_hit = {
-							Instance = part,
-							Parent = part.Parent,
-							Position = hit_pos,
-							Normal = world_normal,
-							Distance = distance,
-							Instance_name = part.Name,
-							Parent_name = part.Parent.Name,
-							
-						}
-					end
+					}
 				end
 			end
 		end
