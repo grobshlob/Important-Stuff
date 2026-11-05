@@ -132,11 +132,14 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 							+ (-part.LookVector * local_normal.z)
 						
 						closest_hit = {
-							Instance = part.Name,
+							Instance = part,
+							Parent = part.Parent,
 							Position = hit_pos,
 							Normal = world_normal,
 							Distance = distance,
-							Parent = part.Parent.Name,
+							Instance_name = part.Name,
+							Parent_name = part.Parent.Name,
+							
 						}
 					end
 				end
