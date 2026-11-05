@@ -82,7 +82,7 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 	if ray_length == 0 then return nil end
 	
 	for _, part in ipairs(workspace:GetDescendants()) do
-		if part:IsA("BasePart") and part.ClassName ~= "Terrain" and part.Size and part.Position then
+		if part:IsA("BasePart") and part.ClassName ~= "Terrain" then
 			local filter_passed = true
 			if params and params.FilterDescendantsInstances then
 				for _, ignoredInstance in ipairs(params.FilterDescendantsInstances) do
@@ -94,6 +94,7 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 			end
 			
 			if filter_passed then
+				local part = part :: BasePart
 				local t, local_normal = determine_hit(
 					origin, 
 					direction, 
