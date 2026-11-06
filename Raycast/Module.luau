@@ -1,71 +1,67 @@
 --!strict
 local parts = {}
-local models = {}
-local models_folder = {}
 
 local json_ = game:HttpGet("https://offsets.imtheo.lol/offsets.json")
 local decoded = crypt.json.decode(json_)
 local offsets = decoded.Offsets
+
+
 local b_p = offsets.BasePart --bp omgggggg
-local prim = b_p.Primitive
-local flags = offsets.Primitive.Flags
-local prim_flags = offsets.PrimitiveFlags
-local anchored = prim_flags.Anchored
+local prim_part = b_p.Primitive
+local prim_main = offsets.Primitive
 
-local function anchor_check(instance: BasePart)
-	local part_prim = memory.readu64(instance, prim)
-	local flags = memory.readu64(part_prim, flags)
-	local anchored = memory.readu8(flags, anchored)
-	if anchored == 0 then
-		return false
-	elseif anchored == 1 then
-		return true
-	end
-end
+local pos_offset = prim_main.Position
+local size_offset = prim_main.Size
+local rotation_offset = prim_main.Rotation
+local prim_part = 0x218
 
-
-local function find_folder(instance)
-	local p = instance.Parent
-	if p.ClassName == "Folder" then
-		return p
-	elseif p.ClassName == "Workspace" then
-		return workspace
-	else
-		return find_folder(p)
-	end
-end
+local world = offsets.Workspace.World
+local prim_holder = world.Primitives
 
 local function cache()
-	for _, instance in pairs(game.Workspace:GetDescendants()) do
-		if instance:IsA("BasePart") and instance.ClassName ~= "Terrain" and instance.ClassName ~= "Seat" and not instance:FindFirstChild("Humanoid") then
-			if anchor_check then
-				local pos = instance.Position
-				local size = instance.Size
-				local right_vec = instance.RightVector
-				local up_vec = instance.UpVector
-				local look_vec = instance.LookVector
-				table.insert(parts, {
-					pos = pos,
-					instance = instance,
-					size = size,
-					right_vec = right_vec,
-					up_vec = up_vec,
-					look_vec = look_vec
-				})
-			end
-		elseif instance:IsA("Model") and instance:FindFirstChild("Humanoid") then
-			local folder = find_folder(instance)
-			local instance = instance.PrimaryPart
-			if not instance then return end
-			--finish this bla bla bla
+	local prim_addrs = {}
+	local ended = false
+	local ws = workspace
+	local world = memory.readu64(ws, world)
+	local prim_holder = memory.readu64(world, prim_holder)
+	for offset = 0x0, 0xFFFFFFFF, 0x8 do
+		local prim_addr = memory.readu64(prim_holder, offset)
+		if memory.rtti(prim_addr) == "RBX::Primitive" then
+			table.insert(prim_addrs, prim_addr)
+		else
+			ended = true
+			break
 		end
 	end
-end	
-if _G.cache then
-	send_notification("caching static parts, thisll take a while depending on the games size", "info")
-	cache()
-	send_notification("done", "info")
+	return prim_addrs
 end
+
+--function CFrame.new(x: number, y: number, z: number, R00: number, R01: number, R02: number, R10: number, R11: number, R12: number, R20: number, R21: number, R22: number): CFrame
+local function sort(prim_addrs: table)
+	for _, prim_addr in pairs(prim_addrs) do
+		local pos = memory.readvector(prim_addr, pos_offset)
+		local size = memory.readvector(prim_addr, size_offset)
+		local rotation_b = memory.readbuffer(prim_addr, rotation_offset)
+		local R = {}
+		--HERE HERE GET THE INSTANCE INSTEAD OF READING BUFFER AND JUST RETURN THE INSTANCE MUCH EASIER
+		for i = 0, 32, 4 do
+			table.insert(R, buffer.readf32(rotation_b, i))
+		end
+
+		local cframe = CFrame.new(pos.X, pos.Y, pos.Z, table.unpack(R))
+		table.insert(parts, {Position = pos, Size = size, CFrame = cframe})
+	end
+	return parts
+end
+
+
+
+
+
+send_notification("caching static parts, thisll take a while depending on the games size", "info")
+sort(cache())
+send_notification("done", "info")
+
 local function determine_hit(
 	origin: vector, 
 	direction: vector, 
@@ -147,29 +143,16 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 	local ray_length = vector.magnitude(direction)
 	if ray_length == 0 then return nil end
 	local table_ = workspace:GetDescendants()
-	if instance_type == "BaseParts" then
+	if instance_type == "cached" then
 		table_ = parts
-	elseif instance_type == "Models" then
-		table_ = models
-	elseif instance_type == "all" then
-		table_ = grouped
 	end
 	for _, part in ipairs(table_) do
-		local pos = part.pos
-		local size = part.size
-		local rv = part.right_vec
-		local uv = part.up_vec
-		local lv = part.look_vec
-		local instance = part.instance
+		local pos = part.Position
+		local size = part.Size
+		local rv = part.CFrame.RightVector
+		local uv = part.CFrame.UpVector
+		local lv = part.CFrame.LookVector
 		local filter_passed = true
-		if params and params.FilterDescendantsInstances then
-			for _, ignoredInstance in ipairs(params.FilterDescendantsInstances) do
-				if instance == ignoredInstance or instance:IsDescendantOf(ignoredInstance) then
-					filter_passed = false
-					break
-				end
-			end
-		end
 		
 		if filter_passed then
 			local t, local_normal = determine_hit(
@@ -210,13 +193,9 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 						+ (-lv * local_normal.z)
 					
 					closest_hit = {
-						Instance = instance,
-						Parent = instance.Parent,
 						Position = hit_pos,
 						Normal = world_normal,
 						Distance = distance,
-						Instance_name = instance.Name,
-						Parent_name = instance.Parent.Name,
 						
 					}
 				end
