@@ -172,7 +172,6 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 	elseif instance_type == "grouped" then
 		table_ = grouped
 	end
-	print("Raycast called:", instance_type, #table_)
 	for i = 1, #table_ do
 		local part = table_[i]
 		--print(part.Name, part.Parent)
@@ -180,6 +179,7 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 		ok, part = pcall(function() return part end)
 		local ok1, class = pcall(function() return part.ClassName end)
 		if not ok or not ok1 then continue end
+		if part.Transparency == 1 then continue end
 		if part:IsA("BasePart") and class ~= "Terrain" and class ~= "Seat" then
 			filter_passed = true
 			if params and params.FilterDescendantsInstances then
