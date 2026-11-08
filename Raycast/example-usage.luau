@@ -1,5 +1,6 @@
-local Workspace_raycast = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/Raycast/Module.luau"))()
 _G.cache = false --recommended for big games
+local Workspace_raycast = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/Raycast/Module.luau"))()
+
 
 local pl = game:GetService("Players")
 local lp = pl.LocalPlayer
