@@ -1,7 +1,7 @@
 --!strict
-local parts = {}
-local characters = {}
-local grouped = {}
+local parts = table.create(100000)
+local characters = table.create(50)
+local grouped = table.create(#parts + #characters)
 
 
 local json_ = game:HttpGet("https://offsets.imtheo.lol/offsets.json")
@@ -28,7 +28,9 @@ local function cache()
 	local prim_holder = memory.readu64(world, prim_holder)
 	for offset = 0x0, 0xFFFFFFFF, 0x8 do
 		local prim_addr = memory.readu64(prim_holder, offset)
-		if memory.rtti(prim_addr) == "RBX::Primitive" then
+		local ok, rtti_ = pcall(function() return memory.rtti(prim_addr) end)
+		if not ok then continue end
+		if rtti_ == "RBX::Primitive" then
 			table.insert(prim_addrs, prim_addr)
 		else
 			break
@@ -58,19 +60,17 @@ local offset = 0x218
 local seen = {}
 local function sort(prim_addrs: table)
 	for _, prim_addr in pairs(prim_addrs) do
-
-		if not offset then print("offset not found") continue end
-		local part_address = memory.readu64(prim_addr, offset)
-		local part_instance = pointer_to_userdata(part_address)
-		local found_model = find_model(part_instance)
-		if not found_model then
-			table.insert(parts, part_instance)
-			table.insert(grouped, part_instance)
-		elseif found_model:FindFirstChild("HumanoidRootPart") and not seen[found_model] then
-			seen[found_model] = true
-			table.insert(characters, found_model:FindFirstChild("HumanoidRootPart"))
-			table.insert(grouped, found_model:FindFirstChild("HumanoidRootPart"))
-		end				
+			local part_address = memory.readu64(prim_addr, offset)
+			local part_instance = pointer_to_userdata(part_address)
+			local found_model = find_model(part_instance)
+			if not found_model then
+				table.insert(parts, part_instance)
+				table.insert(grouped, part_instance)
+			elseif found_model:FindFirstChild("HumanoidRootPart") and not seen[found_model] then
+				seen[found_model] = true
+				table.insert(characters, found_model:FindFirstChild("HumanoidRootPart"))
+				table.insert(grouped, found_model:FindFirstChild("HumanoidRootPart"))
+			end
 	end
 	return parts, characters, grouped
 end
@@ -85,118 +85,75 @@ print(#parts, #characters, #grouped)
 send_notification("done", "info")
 
 local function determine_hit(
-    origin: vector,
-    direction: vector,
-    part_size: vector,
-    part_pos: vector,
-    right_vec: vector,
-    up_vec: vector,
-    look_vec: vector
+	origin: vector, 
+	direction: vector, 
+	part_size: vector, 
+	part_pos: vector, 
+	right_vec: vector, 
+	up_vec: vector, 
+	look_vec: vector
 ): (number?, vector?)
+	local rel_pos = origin - part_pos
+	local local_origin = vector.create(
+		vector.dot(rel_pos, right_vec),
+		vector.dot(rel_pos, up_vec),
+		-vector.dot(rel_pos, look_vec)
+	)
+	local local_dir = vector.create(
+		vector.dot(direction, right_vec),
+		vector.dot(direction, up_vec),
+		-vector.dot(direction, look_vec)
+	)
 
-    local rel_pos = origin - part_pos
-
-    local local_origin = vector.create(
-        vector.dot(rel_pos, right_vec),
-        vector.dot(rel_pos, up_vec),
-        -vector.dot(rel_pos, look_vec)
-    )
-
-    local local_dir = vector.create(
-        vector.dot(direction, right_vec),
-        vector.dot(direction, up_vec),
-        -vector.dot(direction, look_vec)
-    )
-
-    local half_size = part_size * 0.5
-
-    local inside =
-        math.abs(local_origin.x) <= half_size.x and
-        math.abs(local_origin.y) <= half_size.y and
-        math.abs(local_origin.z) <= half_size.z
-
-    local tmin = -math.huge
-    local tmax = math.huge
-
-    local entry_normal = vector.create(0, 0, 0)
-    local exit_normal = vector.create(0, 0, 0)
-
-    local axes = {
-        {
-            origin = local_origin.x,
-            direction = local_dir.x,
-            min = -half_size.x,
-            max = half_size.x,
-            axis = vector.create(1, 0, 0)
-        },
-        {
-            origin = local_origin.y,
-            direction = local_dir.y,
-            min = -half_size.y,
-            max = half_size.y,
-            axis = vector.create(0, 1, 0)
-        },
-        {
-            origin = local_origin.z,
-            direction = local_dir.z,
-            min = -half_size.z,
-            max = half_size.z,
-            axis = vector.create(0, 0, 1)
-        }
-    }
-
-    for _, slab in ipairs(axes) do
-        local o = slab.origin
-        local d = slab.direction
-
-        if math.abs(d) < 1e-6 then
-            if o < slab.min or o > slab.max then
-                return nil, nil
-            end
-        else
-            local t1 = (slab.min - o) / d
-            local t2 = (slab.max - o) / d
-
-            local near_normal = -slab.axis
-            local far_normal = slab.axis
-
-            if t1 > t2 then
-                t1, t2 = t2, t1
-                near_normal, far_normal = far_normal, near_normal
-            end
-
-            if t1 > tmin then
-                tmin = t1
-                entry_normal = near_normal
-            end
-
-            if t2 < tmax then
-                tmax = t2
-                exit_normal = far_normal
-            end
-
-            if tmin > tmax then
-                return nil, nil
-            end
-        end
-    end
-
-    local t
-    local local_normal
-
-    if inside then
-        t = tmax
-        local_normal = exit_normal
-    else
-        t = tmin
-        local_normal = entry_normal
-    end
-
-    if t < 0 or t > 1 then
-        return nil, nil
-    end
-
-    return t, local_normal
+	local half_size = part_size * 0.5
+	local min_bounds = -half_size
+	local max_bounds = half_size
+	
+	local tmin = 0
+	local tmax = 1 
+	local hit_normal = vector.create(0, 0, 0)
+	
+	local axes = {"x", "y", "z"}
+	for _, axis in ipairs(axes) do
+		local origin_c, direction_c, min_c, max_c
+		
+		if axis == "x" then
+			origin_c, direction_c, min_c, max_c = local_origin.x, local_dir.x, min_bounds.x, max_bounds.x
+		elseif axis == "y" then
+			origin_c, direction_c, min_c, max_c = local_origin.y, local_dir.y, min_bounds.y, max_bounds.y
+		else
+			origin_c, direction_c, min_c, max_c = local_origin.z, local_dir.z, min_bounds.z, max_bounds.z
+		end
+		
+		if math.abs(direction_c) < 1e-6 then
+			if origin_c < min_c or origin_c > max_c then
+				return nil, nil
+			end
+		else
+			local ood = 1.0 / direction_c
+			local t1 = (min_c - origin_c) * ood
+			local t2 = (max_c - origin_c) * ood
+			
+			local normal_axis = vector.create(0, 0, 0)
+			if direction_c < 0 then
+				if axis == "x" then normal_axis = vector.create(1, 0, 0)
+				elseif axis == "y" then normal_axis = vector.create(0, 1, 0)
+				elseif axis == "z" then normal_axis = vector.create(0, 0, 1) end
+			else
+				if axis == "x" then normal_axis = vector.create(-1, 0, 0)
+				elseif axis == "y" then normal_axis = vector.create(0, -1, 0)
+				elseif axis == "z" then normal_axis = vector.create(0, 0, -1) end
+			end
+			
+			if t1 > t2 then t1, t2 = t2, t1 end
+			if t1 > tmin then tmin = t1 hit_normal = normal_axis end
+			if t2 < tmax then tmax = t2 end
+			if tmin > tmax then return nil, nil end
+		end
+	end
+	
+	if tmin < 0 or tmin > 1 then return nil, nil end
+	return tmin, hit_normal
 end
 
 local WorkspaceRaycaster = {}
@@ -204,7 +161,6 @@ local WorkspaceRaycaster = {}
 function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: any?, instance_type: string)
 	local closest_hit = nil
 	local min_dist = math.huge
-	print("Raycast called:", instance_type, #table_)
 	local ray_length = vector.magnitude(direction)
 	if ray_length == 0 then return nil end
 	local table_ = workspace:GetDescendants()
@@ -215,10 +171,15 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 	elseif instance_type == "grouped" then
 		table_ = grouped
 	end
-	for _, part in ipairs(table_) do
+	print("Raycast called:", instance_type, #table_)
+	for i = 1, #table_ do
+		local part = table_[i]
+		--print(part.Name, part.Parent)
 		local filter_passed = nil
-		if not part then continue end
-		if part:IsA("BasePart") and part.ClassName ~= "Terrain" and part.ClassName ~= "Seat" then
+		ok, part = pcall(function() return part end)
+		local ok1, class = pcall(function() return part.ClassName end)
+		if not ok or not ok1 then continue end
+		if part:IsA("BasePart") and class ~= "Terrain" and class ~= "Seat" then
 			filter_passed = true
 			if params and params.FilterDescendantsInstances then
 				for _, ignoredInstance in ipairs(params.FilterDescendantsInstances) do
@@ -248,7 +209,7 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 				)
 				
 				if t then
-					print("Intersection:", part.Name, t)
+					--print("Intersection:", part.Name, t)
 					local distance = t * ray_length
 					if distance < min_dist then
 						min_dist = distance
@@ -289,6 +250,7 @@ function WorkspaceRaycaster:Raycast(origin: vector, direction: vector, params: a
 	end
 	return closest_hit
 end
+--[[ test
 local pl = game:GetService("Players")
 local lp = pl.LocalPlayer
 local chara = lp.Character
@@ -301,7 +263,7 @@ local params = {
     FilterDescendantsInstances = {chara}
 }
 while task.wait(1) do
-	local origin = hrp.Position + (hrp.CFrame.LookVector)
+	local origin = hrp.Position + (hrp.CFrame.LookVector * 3) 
 	local direction = hrp.CFrame.LookVector * 50
 	local raycast = WorkspaceRaycaster:Raycast(origin, direction, params, "static_walls")
 	if raycast then
@@ -319,5 +281,5 @@ while task.wait(1) do
 	  print("didnt hit")
 	end
 end
-
+]]
 return WorkspaceRaycaster
