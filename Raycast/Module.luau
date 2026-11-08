@@ -268,7 +268,7 @@ while task.wait(1) do
 	local raycast = WorkspaceRaycaster:Raycast(origin, direction, params, "static_walls")
 	if raycast then
 	  print(raycast)
---[[
+
 	    {
 	        Normal   = 1, 0, 0
 	        Position = 2.1476593017578125, 3.000002384185791, -44.869056701660156
@@ -276,7 +276,7 @@ while task.wait(1) do
 	        Distance = 33.47706544960554
 	        Parent   = rare7
 	    }
-	  ]]
+
 	else
 	  print("didnt hit")
 	end
