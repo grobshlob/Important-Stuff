@@ -1,4 +1,5 @@
 --!strict
+_G.cache = _G.cache or true
 local parts = table.create(100000)
 local characters = table.create(50)
 local grouped = table.create(#parts + #characters)
@@ -78,11 +79,12 @@ end
 
 
 
-
-send_notification("caching static parts, thisll take a while depending on the games size", "info")
-sort(cache())
-print(#parts, #characters, #grouped)
-send_notification("done", "info")
+if _G.cache then
+	send_notification("caching static parts, thisll take a while depending on the games size", "info")
+	sort(cache())
+	print(#parts, #characters, #grouped)
+	send_notification("done", "info")
+end
 
 local function determine_hit(
 	origin: vector, 
