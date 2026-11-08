@@ -1,5 +1,4 @@
 --!strict
-_G.cache = _G.cache or true
 local parts = table.create(100000)
 local characters = table.create(50)
 local grouped = table.create(#parts + #characters)
