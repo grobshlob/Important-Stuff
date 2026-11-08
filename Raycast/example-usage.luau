@@ -1,4 +1,5 @@
 local Workspace_raycast = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/Raycast/Module.luau"))()
+_G.cache = false --recommended for big games
 
 local pl = game:GetService("Players")
 local lp = pl.LocalPlayer
@@ -12,7 +13,17 @@ local direction = hrp.CFrame.LookVector * 50
 local params = {
     FilterDescendantsInstances = {chara}
 }
+--[[
+Workspace_raycast:Raycast(origin: Vector3, direction:Vector3, params: table, instance_type: string)
+instance_type is only if u cached the game
 
+options
+{
+    "static_walls" --static walls
+    "characters" -- characters
+    "grouped" --both static_walls and characters
+}
+]]
 local raycast = Workspace_raycast:Raycast(origin, direction, params)
 if raycast then
   print(raycast)
