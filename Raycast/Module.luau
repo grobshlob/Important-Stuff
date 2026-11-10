@@ -7,11 +7,9 @@ local parts_4 = table.create(12500)
 local characters = table.create(50)
 local grouped = table.create(100000 + #characters)
 
-
 local json_ = game:HttpGet("https://offsets.imtheo.lol/offsets.json")
 local decoded = crypt.json.decode(json_)
 local offsets = decoded.Offsets
-
 
 local b_p = offsets.BasePart --bp omgggggg
 local prim_part = b_p.Primitive
@@ -19,8 +17,6 @@ local prim_main = offsets.Primitive
 
 local pos_offset = prim_main.Position
 local size_offset = prim_main.Size
-
-
 
 local world = offsets.Workspace.World
 local prim_holder = offsets.World.Primitives
@@ -95,12 +91,12 @@ end
 
 
 
---if _G.cache then
+if _G.cache then
 	send_notification("caching static parts, thisll take a while depending on the games size", "info")
 	sort(cache())
 	print(#parts_1 + #parts_2 + #parts_3 + #parts_4, #characters, #grouped)
 	send_notification("done", "info")
---end
+end
 
 local function determine_hit(
 	origin: vector, 
