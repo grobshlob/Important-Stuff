@@ -273,7 +273,7 @@ end
 
 send_notification("Caching static parts. This may take a while.", "info")
 
-parts = sort(cache(), 3)
+parts = sort(cache(), 4)
 
 local total_cached = 0
 
