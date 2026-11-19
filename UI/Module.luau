@@ -343,9 +343,11 @@ function Rectangle:Draw()
 		--divider
 		local from = position + Vector2.new(expand, 10)
 		local to = position + Vector2.new(expand, self.size.Y - 10)
+		local max_width = expand 
+		local text_size = math.clamp(math.floor(max_width / (#lp_name * 0.52)), 12, 25)
 		local middle = position + Vector2.new(expand / 2, 7.5)
 		DrawingImmediate.Line(from, to, accent_col, self.opacity, self.thickness, 1)
-		DrawingImmediate.Text(middle, 25, text_col, 1, lp_name, true, "Nunito")
+		DrawingImmediate.Text(middle, text_size, text_col, 1, lp_name, true, "Nunito")
 	end
 end
 
