@@ -30,10 +30,11 @@ local drag_start = nil
 local window_pos = nil
 local children_window = {}
 
-function ui.drag(main_window)
+function drag(main_window)
 	if isleftpressed() then
 		local mpos = userinput:GetMouseLocation()
 		if not dragging then
+			table.clear(children_window)
 			for v, _ in pairs(children) do
 				table.insert(children_window, {
 					child = v,
@@ -65,7 +66,7 @@ end
 --animations
 local animations = {}
 
-function ui.linear(start_position, end_position, instance, duration)
+function linear(start_position, end_position, instance, duration)
 	table.insert(animations, {
 		instance = instance,
 		start = start_position,
@@ -76,18 +77,48 @@ function ui.linear(start_position, end_position, instance, duration)
 	})
 end
 
-function ui.pop(end_size, instance, duration)
+function pop(end_size, instance, duration, start, on_complete: (() -> ())?)
+	local start_size = start or instance.size
 	table.insert(animations, {
 		instance = instance,
-		start = instance.size,
+		start = start_size,
 		target = end_size,
+		pos = instance.position + (end_size - start_size) / 2,
+		end_pos = instance.position,
 		duration = duration,
 		elapsed = 0,
-		property = "size"
+		property = "size",
+		on_complete = on_complete,
 	})
 end
 
-function ui.update_animations(dt)
+function bounce(instance, duration, strength)
+	table.insert(animations, {
+		instance = instance,
+		duration = duration,
+		elapsed = 0,
+		property = "size",
+		start = instance.size,
+		target = instance.size * strength,
+		pos = instance.position,
+		pos_mid = instance.position - (instance.size * strength - instance.size) / 2,
+		is_bounce = true,
+	})
+end
+
+function slide_up(instance, duration, on_complete: (() -> ())?)
+	table.insert(animations, {
+		instance = instance,
+		duration = duration,
+		elapsed = 0,
+		property = "size",
+		start = Vector2.new(instance.size.X, 1),
+		target = instance.size,
+		on_complete = on_complete,
+	})
+end
+
+function update_animations(dt)
 	for i = #animations, 1, -1 do
 		local animation = animations[i]
 
@@ -99,21 +130,44 @@ function ui.update_animations(dt)
 			1
 		)
 
+		local t = if animation.is_bounce then math.sin(alpha * math.pi) else alpha
+
 		animation.instance[animation.property] = vector.lerp(
 			animation.start,
 			animation.target,
-			alpha
+			t
 		)
 
+		if animation.is_bounce then
+			animation.instance.position = vector.lerp(
+				animation.pos,
+				animation.pos_mid,
+				t
+			)
+		elseif animation.pos and animation.end_pos then
+			animation.instance.position = vector.lerp(
+				animation.pos,
+				animation.end_pos,
+				alpha
+			)
+		end
+
 		if alpha >= 1 then
+			if animation.on_complete then
+				animation.on_complete()
+			end
 			table.remove(animations, i)
 		end
 	end
 end
+ui.drag = drag
+ui.linear = linear
+ui.pop = pop
+ui.bounce = bounce
+ui.slide_up = slide_up
+ui.update_animations = update_animations
 
-function ui.bounce(duration, strength)
-	
-end
+
 --themes
 
 local Themes = {
@@ -189,14 +243,35 @@ local Themes = {
 		Text     = Color3.fromRGB(245, 245, 245),-- #F5F5F5 Pure Off-White
 	},
 
+	Toxic_Lime = {
+		MainBG   = Color3.fromRGB(13, 16, 13),--    #0D100D Pitch Moss
+		BoxFill  = Color3.fromRGB(23, 29, 23),--    #171D17 Dark Olive Slate
+		Outline  = Color3.fromRGB(132, 204, 22),--  #84CC16 Acid Lime
+		Accent   = Color3.fromRGB(43, 54, 43),--    #2B362B Muted Forest
+		Selected = Color3.fromRGB(101, 163, 13),--  #65A30D Active Lime
+		Text     = Color3.fromRGB(247, 254, 231),-- #F7FEE7 Crisp Lime White
+	},
+
+	Frost_Light = {
+		MainBG   = Color3.fromRGB(244, 245, 248),-- #F4F5F8 Soft Cool Grey
+		BoxFill  = Color3.fromRGB(255, 255, 255),-- #FFFFFF Pure Card White
+		Outline  = Color3.fromRGB(59, 130, 246),--  #3B82F6 Crisp Royal Blue
+		Accent   = Color3.fromRGB(209, 213, 219),-- #D1D5DB Subtle Divider
+		Selected = Color3.fromRGB(37, 99, 235),--   #2563EB Active Blue
+		Text     = Color3.fromRGB(17, 24, 39),--    #111827 Deep Charcoal Text
+	},
 }
 ui.Themes = Themes
+--extra
+local pl = game.Players
+local lp = pl.LocalPlayer
+local lp_name = lp.Name
+
 --Classes
 
 local Rectangle = {}
 Rectangle.__index = Rectangle
 ui.Rectangle = Rectangle
-
 function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, main_window, title: string?)
 	local self = setmetatable({}, Rectangle)
 	self.size = size
@@ -208,8 +283,12 @@ function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlin
 	self.roundness = roundness
 	self.thickness = thickness
 	self.main_window = main_window
+	self.expand = size / 5
 	self.title = title
 	self.draggable = false
+	self.animated = false
+	self.anim_started = false
+	self.resized = false
 	if self.main_window then
 		self.draggable = true
 	else
@@ -220,7 +299,22 @@ function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlin
 	return self
 end
 
-function Rectangle:Draw(type_)
+function Rectangle:Draw()
+	if self.main_window and not self.resized then 
+		self.size += Vector2.new(50, 0) 
+		self.resized = true
+	end
+	if self.main_window and not self.anim_started then
+		self.anim_started = true
+		local og_size = self.size
+		local start_size = Vector2.new(50, 50)
+		pop(og_size, self, 0.5, start_size, function()
+			self.animated = true
+		end)
+		self.size = start_size
+		self.position = self.position + (og_size - start_size) / 2
+	end
+
 	--variables
 	local size = self.size
 	local position = self.position
@@ -240,10 +334,18 @@ function Rectangle:Draw(type_)
 	else
 		DrawingImmediate.Rectangle(position, size, outline_col, self.opacity, self.roundness, self.thickness)
 	end
-
+	local expand = self.expand.X
 	if self.title then
 		DrawingImmediate.FilledRectangle(position + Vector2.new(10, 35), Vector2.new(size.X - 20, self.thickness), accent_col, self.opacity)
-		DrawingImmediate.Text(position + Vector2.new(15, 10), 25, text_col, 1, self.title, false, "Nunito")
+		DrawingImmediate.Text(position + Vector2.new(15 + expand, 10), 25, text_col, 1, self.title, false, "Nunito")
+	end
+	if self.main_window and self.resized then
+		--divider
+		local from = position + Vector2.new(expand, 10)
+		local to = position + Vector2.new(expand, self.size.Y - 10)
+		local middle = position + Vector2.new(expand / 2, 7.5)
+		DrawingImmediate.Line(from, to, accent_col, self.opacity, self.thickness, 1)
+		DrawingImmediate.Text(middle, 25, text_col, 1, lp_name, true, "Nunito")
 	end
 end
 
@@ -251,10 +353,9 @@ end
 local TextBox = {}
 TextBox.__index = TextBox
 ui.TextBox = TextBox
-
 function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacity_text, filled, outlined, outlined_text, roundness, thickness, theme: string, text)
 	local self = setmetatable({}, TextBox)
-	local t = Themes[theme] or Themes.Catppuccin
+	local t = Themes[theme]
 
 	self.size_text = size_text
 	self.size_box = size_box
@@ -306,7 +407,6 @@ end
 local Button = {}
 Button.__index = Button
 ui.Button = Button
-
 function Button.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?)
 	local self = setmetatable({}, Button)
 	local t = Themes[theme] or Themes.Catppuccin
@@ -371,6 +471,7 @@ function Button:Clicked(pressed)
 		if self.callback then
 			self.callback()
 		end
+		bounce(self.rect, 0.15, 1.15)
 	end
 
 	if self.hovering then
@@ -388,7 +489,6 @@ end
 local Checkbox = {}
 Checkbox.__index = Checkbox
 ui.Checkbox = Checkbox
-
 function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?)
 	local self = setmetatable({}, Checkbox)
 	local t = Themes[theme] or Themes.Catppuccin
@@ -453,6 +553,7 @@ function Checkbox:Clicked(pressed)
 			self.state = false
 			self.callback(self.state)
 		end
+		bounce(self.rect, 0.1, 1.1)
 
 
 	end
@@ -472,7 +573,6 @@ end
 local Dropdown = {}
 Dropdown.__index = Dropdown
 ui.Dropdown = Dropdown
-
 function Dropdown.new(data: {string}, size, position, opacity, filled, outlined, theme: string, roundness, thickness)
 	local self = setmetatable({}, Dropdown)
 	local t = Themes[theme] or Themes.Catppuccin
@@ -550,11 +650,13 @@ function Dropdown:Draw()
 			box:Draw()
 		end
 	end
+
 	local from_1 = Vector2.new(self.last_header_pos.X + self.size.X - 20, self.last_header_pos.Y + self.size.Y / 2 - 5)
 	local to_1 = Vector2.new(self.last_header_pos.X + self.size.X - 15, self.last_header_pos.Y + self.size.Y / 2)
 	local to_2 = Vector2.new(self.last_header_pos.X + self.size.X - 10, self.last_header_pos.Y + self.size.Y / 2 - 5)
 	DrawingImmediate.Line(from_1, to_1, self.outline_color, self.opacity, 3, 3)
 	DrawingImmediate.Line(to_1, to_2, self.outline_color, self.opacity, 3, 3)
+
 end
 
 function Dropdown:Dropped(pressed)
@@ -583,9 +685,9 @@ function Dropdown:Dropped(pressed)
 					if self.dropped then
 						row.opacity_box = 1
 						row.opacity_text = 1
-						ui.linear(row.position, row_target, row, 0.15)
+						linear(row.position, row_target, row, 0.15)
 					else
-						ui.linear(row.position, base_pos, row, 0.15)
+						linear(row.position, base_pos, row, 0.15)
 					end
 				end
 			end
@@ -738,6 +840,7 @@ function Slider:Draw()
 		99
 	)
 end
+
 --main
 
 function ui.hide(hide_key: string)
@@ -750,5 +853,7 @@ function ui.hide(hide_key: string)
 	end
 	return false
 end
+
+
 
 return ui
