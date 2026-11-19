@@ -12,19 +12,19 @@ local RunService = game:GetService("RunService")
 
 
 local window = ui.Rectangle.new(Vector2.new(600, 400), Vector2.new(500, 500), 1, true, true, "Monochrome", 15, 3, true, "My Hub")
-local label = ui.TextBox.new(14, Vector2.new(200, 35), Vector2.new(520, 555), 1, 1, true, true, false, 10, 2, "Monochrome", "Status: Ready")
-local dropdown = ui.Dropdown.new({"Options", "Option 1", "Option 2"}, Vector2.new(150, 45), Vector2.new(520, 660), 1, true, true, "Monochrome", 12, 2)
+local label = ui.TextBox.new(30, Vector2.new(200, 35), Vector2.new(640, 555), 1, 1, true, true, false, 10, 2, "Monochrome", "Status: Ready")
+local dropdown = ui.Dropdown.new({"Options", "Option 1", "Option 2"}, Vector2.new(150, 45), Vector2.new(640, 660), 1, true, true, "Monochrome", 12, 2)
 
-local button = ui.Button.new(Vector2.new(150, 40), Vector2.new(520, 605), 1, true, true, "Monochrome", 10, 2, function()
+local button = ui.Button.new(Vector2.new(150, 40), Vector2.new(640, 605), 1, true, true, "Monochrome", 10, 2, function()
 	print("Button clicked!")
 end)
 
-local checkbox = ui.Checkbox.new(Vector2.new(30, 30), Vector2.new(700, 605), 1, true, true, "Monochrome", 6, 2, function(state)
+local checkbox = ui.Checkbox.new(Vector2.new(30, 30), Vector2.new(850, 605), 1, true, true, "Monochrome", 6, 2, function(state)
 	print("Checkbox state:", state)
 end)
 local slider = ui.Slider.new(
 	Vector2.new(200, 12),
-	Vector2.new(520, 730),
+	Vector2.new(640, 730),
 	1,
 	true,
 	true,
@@ -51,31 +51,30 @@ end)
 local was_down = false
 
 RunService.RenderUnrestricted:Connect(function(dt)
-	if hidden then return end
-
-	local is_down = isleftpressed()
-	local pressed = is_down and not was_down
-	was_down = is_down
-
-	ui.update_animations(dt)
-
-	window:Draw()
-	label:Draw()
-	button:Draw()
-	checkbox:Draw()
-	slider:Draw()
-	dropdown:Draw() --id draw the dropdown after everything else so when u drop it the options are above everything
-	
-	
-	slider:Update(pressed, is_down, function(val)
-		print("Slider:", val)
-	end)
-	checkbox:Clicked(pressed)
-	button:Clicked(pressed)
-	dropdown:Dropped(pressed)
-
-	if window.draggable and not button.hovering and not checkbox.hovering and not dropdown.hovering and not slider.dragging then
-		ui.drag(window)
+	if not toggle_hide then
+		local is_pressed = isleftpressed() 
+		local pressed = is_pressed and not was_pressed
+		was_pressed = is_pressed
+		window:Draw(1)
+		update_animations(dt)
+		if window.animated then
+			label:Draw()
+			button:Draw()
+			button:Clicked(pressed)
+			
+			
+			checkbox:Draw()
+			checkbox:Clicked(pressed)
+			slider:Update(pressed, is_pressed, function(val)
+				print("Slider:", val)
+			end)
+			slider:Draw()
+			dropdown:Draw()
+			dropdown:Dropped(pressed)
+			if window.draggable and not slider.dragging and not checkbox.hovering and not button.hovering and not dropdown.hovering then
+				drag(window)
+			end
+		end
 	end
 end)
 ```
