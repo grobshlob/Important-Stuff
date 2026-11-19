@@ -17,6 +17,45 @@ function dog:walk()
 	self.position = self.position * 5
 end
 ]]
+local function draw_cat(center: Vector2, scale: number, color: Color3, opacity: number, thickness: number)
+	local function line(x1: number, y1: number, x2: number, y2: number)
+		local p1 = center + Vector2.new(x1 * scale, y1 * scale)
+		local p2 = center + Vector2.new(x2 * scale, y2 * scale)
+		DrawingImmediate.Line(p1, p2, color, opacity, thickness)
+	end
+
+	-- Ears & forehead
+	line(-0.7, -0.2, -0.8, -0.9) -- left ear outer
+	line(-0.8, -0.9, -0.3, -0.5) -- left ear inner
+	line(-0.3, -0.5,  0.3, -0.5) -- forehead
+	line( 0.3, -0.5,  0.8, -0.9) -- right ear inner
+	line( 0.8, -0.9,  0.7, -0.2) -- right ear outer
+
+	-- Cheeks & chin
+	line( 0.7,  -0.2,  0.85, 0.3)
+	line( 0.85,  0.3,  0.45, 0.75)
+	line( 0.45,  0.75, -0.45, 0.75)
+	line(-0.45,  0.75, -0.85, 0.3)
+	line(-0.85,  0.3,  -0.7, -0.2)
+
+	-- eyes (^ ^)
+	line(-0.45, 0.05, -0.3, -0.1)
+	line(-0.3, -0.1,  -0.15, 0.05)
+	line( 0.15, 0.05,  0.3, -0.1)
+	line( 0.3, -0.1,   0.45, 0.05)
+
+	-- Mouth (w)
+	line(-0.18, 0.28, -0.09, 0.4)
+	line(-0.09, 0.4,   0,    0.3)
+	line( 0,    0.3,   0.09, 0.4)
+	line( 0.09, 0.4,   0.18, 0.28)
+
+	-- Whiskers
+	line(-0.62, 0.18, -1.05, 0.1)
+	line(-0.62, 0.34, -1.05, 0.4)
+	line( 0.62, 0.18,  1.05, 0.1)
+	line( 0.62, 0.34,  1.05, 0.4)
+end
 local ui = {}
 
 
@@ -343,11 +382,10 @@ function Rectangle:Draw()
 		--divider
 		local from = position + Vector2.new(expand, 10)
 		local to = position + Vector2.new(expand, self.size.Y - 10)
-		local max_width = expand 
-		local text_size = math.clamp(math.floor(max_width / (#lp_name * 0.52)), 12, 25)
-		local middle = position + Vector2.new(expand / 2, 7.5)
+
 		DrawingImmediate.Line(from, to, accent_col, self.opacity, self.thickness, 1)
-		DrawingImmediate.Text(middle, text_size, text_col, 1, lp_name, true, "Nunito")
+		local cat_center = position + Vector2.new(expand / 2, 18)
+		draw_cat(cat_center, 14, outline_col, self.opacity, 2)
 	end
 end
 
