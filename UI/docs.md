@@ -28,7 +28,7 @@ local slider = ui.Slider.new(
 	1,
 	true,
 	true,
-	"Phantom_Violet",
+	"Monochrome",
 	6,
 	2,
 	0,
@@ -63,9 +63,10 @@ RunService.RenderUnrestricted:Connect(function(dt)
 	label:Draw()
 	button:Draw()
 	checkbox:Draw()
-	dropdown:Draw()
 	slider:Draw()
-
+	dropdown:Draw() --id draw the dropdown after everything else so when u drop it the options are above everything
+	
+	
 	slider:Update(pressed, is_down, function(val)
 		print("Slider:", val)
 	end)
@@ -73,7 +74,7 @@ RunService.RenderUnrestricted:Connect(function(dt)
 	button:Clicked(pressed)
 	dropdown:Dropped(pressed)
 
-	if window.draggable and not button.hovering and not checkbox.hovering and not dropdown.hovering then
+	if window.draggable and not button.hovering and not checkbox.hovering and not dropdown.hovering and not slider.dragging then
 		ui.drag(window)
 	end
 end)
