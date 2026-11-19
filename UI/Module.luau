@@ -610,6 +610,129 @@ function Dropdown:Dropped(pressed)
 
 	return self.chosen
 end
+
+local Slider = {}
+Slider.__index = Slider
+ui.Slider = Slider
+--(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, main_window, title: string?)
+function Slider.new(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, min, max, value)
+	local self = setmetatable({}, Slider)
+self.size = size
+	self.position = position
+	self.opacity = opacity
+	self.filled = filled
+	self.outlined = outlined
+	self.theme = theme
+	self.roundness = roundness
+	self.thickness = thickness
+	self.min = min
+	self.max = max
+	self.delta = max - min
+	self.value = math.clamp(value or min, min, max)
+
+	self.rect = Rectangle.new(
+		size,
+		position,
+		opacity,
+		filled,
+		outlined,
+		theme,
+		roundness,
+		thickness,
+		false
+	)
+	children[self.rect] = nil
+	children[self] = true
+
+	self.rects = {}
+	if self.delta > 0 then
+		local width = self.size.X / self.delta
+		for i = 0, math.floor(self.delta) - 1 do
+			local seg_pos = Vector2.new(self.position.X + (width * i), self.position.Y)
+			local seg_size = Vector2.new(width, self.size.Y)
+			self.rects[i + 1] = Rectangle.new(
+				seg_size,
+				seg_pos,
+				0,
+				false,
+				false,
+				"Monochrome",
+				self.roundness,
+				self.thickness,
+				false
+			)
+			children[self.rects[i + 1]] = nil
+		end
+	end
+
+	return self
+end
+
+function Slider:SetValue(new_value: number)
+	self.value = math.clamp(new_value, self.min, self.max)
+end
+
+function Slider:GetKnobInfo(): (Vector2, number)
+	local ratio = if self.delta > 0
+		then math.clamp((self.value - self.min) / self.delta, 0, 1)
+		else 0
+
+	local knob_position = Vector2.new(
+		self.position.X + (self.size.X * ratio),
+		self.position.Y + (self.size.Y / 2)
+	)
+	local knob_radius = self.size.Y + 3
+
+	return knob_position, knob_radius
+end
+
+function Slider:Update(pressed: boolean, is_held: boolean, on_change: ((number) -> ())?)
+	local mpos = userinput:GetMouseLocation()
+	local knob_position, knob_radius = self:GetKnobInfo()
+	local t = Themes[self.theme]
+	if pressed then
+		local dist = vector.magnitude(mpos - knob_position)
+		if dist <= knob_radius + 2 then
+			self.dragging = true
+		end
+	end
+
+	if not is_held then
+		self.dragging = false
+	end
+
+	if self.dragging and is_held and self.size.X > 0 then
+		DrawingImmediate.FilledCircle(knob_position, knob_radius + 9, t.Outline, 0.3, 99)
+		local ratio = math.clamp((mpos.X - self.position.X) / self.size.X, 0, 1)
+		local new_value = self.min + (ratio * self.delta)
+		local prev_value = self.value
+		self:SetValue(new_value)
+
+		if on_change and self.value ~= prev_value then
+			on_change(self.value)
+		end
+	end
+end
+
+function Slider:Draw()
+	self.rect.position = self.position
+	self.rect:Draw()
+
+	local t = Themes[self.theme] or Themes.Catppuccin
+	for _, segment in ipairs(self.rects) do
+		segment:Draw()
+	end
+
+	local knob_position, knob_radius = self:GetKnobInfo()
+
+	DrawingImmediate.FilledCircle(
+		knob_position,
+		knob_radius,
+		t.Outline,
+		self.opacity,
+		99
+	)
+end
 --main
 
 function ui.hide(hide_key: string)
