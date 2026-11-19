@@ -22,7 +22,19 @@ end)
 local checkbox = ui.Checkbox.new(Vector2.new(30, 30), Vector2.new(700, 605), 1, true, true, "Monochrome", 6, 2, function(state)
 	print("Checkbox state:", state)
 end)
-
+local slider = ui.Slider.new(
+	Vector2.new(200, 12),
+	Vector2.new(520, 730),
+	1,
+	true,
+	true,
+	"Phantom_Violet",
+	6,
+	2,
+	0,
+	100,
+	50
+)
 local hidden = false
 local key_down = false
 
@@ -52,7 +64,11 @@ RunService.RenderUnrestricted:Connect(function(dt)
 	button:Draw()
 	checkbox:Draw()
 	dropdown:Draw()
+	slider:Draw()
 
+	slider:Update(pressed, is_down, function(val)
+		print("Slider:", val)
+	end)
 	checkbox:Clicked(pressed)
 	button:Clicked(pressed)
 	dropdown:Dropped(pressed)
