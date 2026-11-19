@@ -7,8 +7,9 @@ An immediate-mode Luau UI library built on `DrawingImmediate`, featuring built-i
 Load the module, instantiate your components, and render them inside `RunService.Render`. Call `isleftclicked()` **once** per frame and pass `pressed` into interactive components so clicks aren't consumed early.
 
 ```
+local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/UI/Module.luau"))()
 local RunService = game:GetService("RunService")
-local ui = loadstring(readfile("ui.lua"))() -- or require(...)
+
 
 local window = ui.Rectangle.new(Vector2.new(600, 400), Vector2.new(500, 500), 1, true, true, "Monochrome", 15, 3, true, "My Hub")
 local label = ui.TextBox.new(14, Vector2.new(200, 35), Vector2.new(520, 555), 1, 1, true, true, false, 10, 2, "Monochrome", "Status: Ready")
@@ -35,26 +36,31 @@ task.spawn(function()
 	end
 end)
 
-RunService.Render:Connect(function(dt)
+local was_down = false
+
+RunService.RenderUnrestricted:Connect(function(dt)
 	if hidden then return end
 
-	local pressed = isleftclicked()
+	local is_down = isleftpressed()
+	local pressed = is_down and not was_down
+	was_down = is_down
+
 	ui.update_animations(dt)
 
 	window:Draw()
 	label:Draw()
 	button:Draw()
-	button:Clicked(pressed)
 	checkbox:Draw()
-	checkbox:Clicked(pressed)
 	dropdown:Draw()
+
+	checkbox:Clicked(pressed)
+	button:Clicked(pressed)
 	dropdown:Dropped(pressed)
 
 	if window.draggable and not button.hovering and not checkbox.hovering and not dropdown.hovering then
 		ui.drag(window)
 	end
 end)
-
 ```
 
 ## Themes
