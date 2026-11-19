@@ -550,6 +550,11 @@ function Dropdown:Draw()
 			box:Draw()
 		end
 	end
+	local from_1 = Vector2.new(self.last_header_pos.X + self.size.X - 20, self.last_header_pos.Y + self.size.Y / 2 - 5)
+	local to_1 = Vector2.new(self.last_header_pos.X + self.size.X - 15, self.last_header_pos.Y + self.size.Y / 2)
+	local to_2 = Vector2.new(self.last_header_pos.X + self.size.X - 10, self.last_header_pos.Y + self.size.Y / 2 - 5)
+	DrawingImmediate.Line(from_1, to_1, self.outline_color, self.opacity, 3, 3)
+	DrawingImmediate.Line(to_1, to_2, self.outline_color, self.opacity, 3, 3)
 end
 
 function Dropdown:Dropped(pressed)
