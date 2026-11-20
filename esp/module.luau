@@ -3,6 +3,7 @@ local box3d = {}
 box3d.thickness = 2
 box3d.color_filled = Color3.fromRGB(118, 0, 118)
 box3d.color_outline = Color3.fromRGB(50, 0, 150)
+box3d.text_color = Color3.fromRGB(255, 255, 255)
 
 local ws = workspace
 local cam = ws.CurrentCamera
@@ -79,5 +80,17 @@ function box3d.draw_outline(corners)
     --face6
     DrawingImmediate.Quad(c[3], c[7], c[8], c[4], box3d.color_outline, box3d.thickness)
 end
-
+function box3d.text(part, text, character)
+    local text = text or part.Name
+    local pos = part.Position
+    local size = part.Size
+    local text_pos = pos + Vector3.new(0, size.Y + 5, 0)
+    local spos, vis = cam:WorldToScreenPoint(text_pos)
+    if vis then
+        local hrp = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
+        local dist = vector.magnitude(hrp.Position - pos)
+        local text_size = math.clamp(150 / math.max(dist, 1), 12, 24)
+        DrawingImmediate.Text(spos, text_size, box3d.text_color, true, text)
+    end
+end
 return box3d
