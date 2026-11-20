@@ -90,7 +90,7 @@ function box3d.text(part, text, character)
         local hrp = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
         local dist = vector.magnitude(hrp.Position - pos)
         local text_size = math.clamp(150 / math.max(dist, 1), 12, 24)
-        DrawingImmediate.Text(spos, text_size, box3d.text_color, true, text)
+        DrawingImmediate.Text(spos, text_size, box3d.text_color, 1, true, text, "Nunito")
     end
 end
 return box3d
