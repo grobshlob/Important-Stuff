@@ -211,6 +211,7 @@ ui.Checkbox.new(size: Vector2, position: Vector2, opacity: number, filled: boole
 | `roundness` | `number` | Corner rounding radius |
 | `thickness` | `number` | Border thickness |
 | `callback` | `((state: boolean) -> ())?` | Fires with `true` or `false` when toggled |
+| `default` | `boolean?` | the starting state |
 
 **Methods & Properties:**
 
