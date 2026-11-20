@@ -609,10 +609,10 @@ end
 
 local Checkbox = {}
 Checkbox.__index = Checkbox
-function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?)
+function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?, default: boolean?)
 	local self = setmetatable({}, Checkbox)
 	local t = Themes[theme] or Themes.Catppuccin
-
+	local initial = defualt == true
 	self.size = size
 	self.position = position
 	self.opacity = opacity
@@ -628,7 +628,10 @@ function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme:
 	self.activated_color = t.Selected
 	self.hovering = false
 	self.activated = false
-	self.state = false
+	self.state = inital
+	if initial and self.callback then
+		self.callback(true)
+	end
 	children[self] = true
 	return self
 end
