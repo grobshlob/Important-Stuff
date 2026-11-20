@@ -8,7 +8,7 @@ An immediate-mode Luau UI library built on `DrawingImmediate`, featuring built-i
 Load the module, instantiate your components, and render them inside `RunService.Render` (or `RenderUnrestricted`). Track `isleftpressed()` **once** per frame to derive a single-frame `pressed` flag, then pass `pressed` and `is_pressed` into `ui.Tabs:Draw`.
 
 ```luau
-local ui = loadstring(game:HttpGet("[https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/UI/Module.luau](https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/UI/Module.luau)"))()
+local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/UI/Module.luau"))()
 local RunService = game:GetService("RunService")
 
 local window = ui.Rectangle.new(Vector2.new(600, 400), Vector2.new(500, 500), 1, true, true, "Monochrome", 15, 3, true, "My Hub")
