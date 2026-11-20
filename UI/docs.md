@@ -10,7 +10,6 @@ Load the module, instantiate your components, and render them inside `RunService
 local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/UI/Module.luau"))()
 local RunService = game:GetService("RunService")
 
-
 local window = ui.Rectangle.new(Vector2.new(600, 400), Vector2.new(500, 500), 1, true, true, "Monochrome", 15, 3, true, "My Hub")
 local label = ui.TextBox.new(30, Vector2.new(200, 35), Vector2.new(640, 555), 1, 1, true, true, false, 10, 2, "Monochrome", "Status: Ready")
 local dropdown = ui.Dropdown.new({"Options", "Option 1", "Option 2"}, Vector2.new(150, 45), Vector2.new(640, 660), 1, true, true, "Monochrome", 12, 2)
@@ -22,6 +21,7 @@ end)
 local checkbox = ui.Checkbox.new(Vector2.new(30, 30), Vector2.new(850, 605), 1, true, true, "Monochrome", 6, 2, function(state)
 	print("Checkbox state:", state)
 end)
+
 local slider = ui.Slider.new(
 	Vector2.new(200, 12),
 	Vector2.new(640, 730),
@@ -35,6 +35,20 @@ local slider = ui.Slider.new(
 	100,
 	50
 )
+
+local tab1 = ui.Tab.new("Main", 1, Vector2.new(100, 32))
+local tab2 = ui.Tab.new("Visuals", 2, Vector2.new(100, 32))
+
+tab1:Register(window)
+tab2:Register(window)
+
+tab1:Add(label)
+tab1:Add(button)
+tab1:Add(slider)
+
+tab2:Add(checkbox)
+tab2:Add(dropdown)
+
 local hidden = false
 local key_down = false
 
@@ -48,31 +62,22 @@ task.spawn(function()
 	end
 end)
 
-local was_down = false
+local was_pressed = false
 
 RunService.RenderUnrestricted:Connect(function(dt)
-	if not toggle_hide then
-		local is_pressed = isleftpressed() 
+	if not hidden then
+		local is_pressed = isleftpressed()
 		local pressed = is_pressed and not was_pressed
 		was_pressed = is_pressed
-		window:Draw(1)
-		update_animations(dt)
+
+		window:Draw()
+		ui.update_animations(dt)
+
 		if window.animated then
-			label:Draw()
-			button:Draw()
-			button:Clicked(pressed)
-			
-			
-			checkbox:Draw()
-			checkbox:Clicked(pressed)
-			slider:Update(pressed, is_pressed, function(val)
-				print("Slider:", val)
-			end)
-			slider:Draw()
-			dropdown:Draw()
-			dropdown:Dropped(pressed)
+			ui.Tabs:Draw(pressed, is_pressed)
+
 			if window.draggable and not slider.dragging and not checkbox.hovering and not button.hovering and not dropdown.hovering then
-				drag(window)
+				ui.drag(window)
 			end
 		end
 	end
