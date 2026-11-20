@@ -17,6 +17,7 @@ function dog:walk()
 	self.position = self.position * 5
 end
 ]]
+local ui = {}
 local function draw_cat(center: Vector2, scale: number, color: Color3, opacity: number, thickness: number)
 	local function line(x1: number, y1: number, x2: number, y2: number)
 		local p1 = center + Vector2.new(x1 * scale, y1 * scale)
@@ -56,11 +57,8 @@ local function draw_cat(center: Vector2, scale: number, color: Color3, opacity: 
 	line( 0.62, 0.18,  1.05, 0.1)
 	line( 0.62, 0.34,  1.05, 0.4)
 end
-local ui = {}
-
 
 local userinput = game:GetService("UserInputService")
-
 local children = {}
 
 --helpers
@@ -199,13 +197,6 @@ function update_animations(dt)
 		end
 	end
 end
-ui.drag = drag
-ui.linear = linear
-ui.pop = pop
-ui.bounce = bounce
-ui.slide_up = slide_up
-ui.update_animations = update_animations
-
 
 --themes
 
@@ -300,7 +291,7 @@ local Themes = {
 		Text     = Color3.fromRGB(17, 24, 39),--    #111827 Deep Charcoal Text
 	},
 }
-ui.Themes = Themes
+
 --extra
 local pl = game.Players
 local lp = pl.LocalPlayer
@@ -310,7 +301,7 @@ local lp_name = lp.Name
 
 local Rectangle = {}
 Rectangle.__index = Rectangle
-ui.Rectangle = Rectangle
+
 function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, main_window, title: string?)
 	local self = setmetatable({}, Rectangle)
 	self.size = size
@@ -392,13 +383,14 @@ end
 
 local TextBox = {}
 TextBox.__index = TextBox
-ui.TextBox = TextBox
+
 function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacity_text, filled, outlined, outlined_text, roundness, thickness, theme: string, text)
 	local self = setmetatable({}, TextBox)
 	local t = Themes[theme]
 
 	self.size_text = size_text
 	self.size_box = size_box
+	self.size = size_box
 	self.position = position
 	self.opacity_box = opacity_box
 	self.opacity_text = opacity_text
@@ -430,6 +422,7 @@ end
 
 function TextBox:Draw()
 	self.rect.position = self.position
+	self.rect.size = self.size
 	self.rect.opacity = self.opacity_box
 	self.rect.color = self.color_box
 	self.rect.outline_color = self.outline_color
@@ -446,8 +439,8 @@ end
 
 local Button = {}
 Button.__index = Button
-ui.Button = Button
-function Button.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?)
+
+function Button.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?, text: string?)
 	local self = setmetatable({}, Button)
 	local t = Themes[theme] or Themes.Catppuccin
 
@@ -466,11 +459,13 @@ function Button.new(size, position: Vector2, opacity, filled, outlined, theme: s
 	self.activated_color = t.Selected
 	self.hovering = false
 	self.activated = false
+	self.text = text
+	children[self] = true
 	return self
 end
 
 function Button:Draw()
-	if not self.rect then
+	if not self.rect and not self.text then
 		self.rect = Rectangle.new(
 			self.size,
 			self.position,
@@ -482,9 +477,23 @@ function Button:Draw()
 			self.thickness,
 			false
 		)
+	elseif not self.rect and self.text then
+		self.rect = TextBox.new(
+			self.size.Y - 5,
+			self.size, 
+			self.position,
+			self.opacity,
+			self.opacity,
+			self.filled,
+			self.outlined,
+			false,
+			self.roundness,
+			self.thickness,
+			self.theme,
+			self.text
+		)
 	end
 	self.rect:Draw(1)
-	children[self] = true
 end
 
 function Button:Clicked(pressed)
@@ -511,6 +520,7 @@ function Button:Clicked(pressed)
 		if self.callback then
 			self.callback()
 		end
+
 		bounce(self.rect, 0.15, 1.15)
 	end
 
@@ -525,10 +535,80 @@ function Button:Clicked(pressed)
 		self.rect.color = col
 	end
 end
+local Tabs = {}
+Tabs.__index = Tabs
+Tabs.list = {}
+Tabs.active = 1
+
+local Tab = {}
+Tab.__index = Tab
+
+function Tab.new(name: string, index: number, size: Vector2)
+	local self = setmetatable({}, Tab)
+	self.name = name
+	self.index = index
+	self.size = size
+	self.button = nil
+	self.instances = {}
+
+	table.insert(Tabs.list, self)
+	return self
+end
+
+function Tab:Register(main_window)
+	local position = main_window.position
+	local sidebar_start = position + Vector2.new(10, 45)
+	local padding = 6
+	local section = sidebar_start + Vector2.new(0, (self.size.Y + padding) * (self.index - 1))
+
+	if not self.button then
+		self.button = Button.new(
+			self.size,
+			section,
+			main_window.opacity,
+			false,
+			true,
+			main_window.theme,
+			main_window.roundness,
+			main_window.thickness,
+			function()
+				Tabs.active = self.index
+			end,
+			self.name
+		)
+	end
+end
+
+function Tab:Add(instance)
+	table.insert(self.instances, instance)
+end
+
+function Tabs:Draw(pressed: boolean, is_pressed: boolean)
+	for _, tab in ipairs(Tabs.list) do
+		if tab.button then
+			tab.button:Draw()
+			tab.button:Clicked(pressed)
+		end
+
+		if tab.index == Tabs.active then
+			for _, child in ipairs(tab.instances) do
+				child:Draw()
+				if child.Clicked then
+					child:Clicked(pressed)
+				elseif child.Dropped then
+					child:Dropped(pressed)
+				elseif child.Update then
+					child:Update(pressed, is_pressed)
+				end
+			end
+		end
+	end
+end
+
+
 
 local Checkbox = {}
 Checkbox.__index = Checkbox
-ui.Checkbox = Checkbox
 function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?)
 	local self = setmetatable({}, Checkbox)
 	local t = Themes[theme] or Themes.Catppuccin
@@ -549,6 +629,7 @@ function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme:
 	self.hovering = false
 	self.activated = false
 	self.state = false
+	children[self] = true
 	return self
 end
 function Checkbox:Draw()
@@ -566,7 +647,6 @@ function Checkbox:Draw()
 		)
 	end
 	self.rect:Draw(1)
-	children[self] = true
 end
 
 function Checkbox:Clicked(pressed)
@@ -587,15 +667,17 @@ function Checkbox:Clicked(pressed)
 		if not self.activated then
 			self.activated = true
 			self.state = true
-			self.callback(self.state)
+			if self.callback then
+				self.callback(self.state)
+			end
 		else
 			self.activated = false
 			self.state = false
-			self.callback(self.state)
+			if self.callback then
+				self.callback(self.state)
+			end
 		end
 		bounce(self.rect, 0.1, 1.1)
-
-
 	end
 	if self.activated then
 		self.rect.color = self.activated_color
@@ -612,7 +694,7 @@ function Checkbox:Clicked(pressed)
 end
 local Dropdown = {}
 Dropdown.__index = Dropdown
-ui.Dropdown = Dropdown
+
 function Dropdown.new(data: {string}, size, position, opacity, filled, outlined, theme: string, roundness, thickness)
 	local self = setmetatable({}, Dropdown)
 	local t = Themes[theme] or Themes.Catppuccin
@@ -637,6 +719,7 @@ function Dropdown.new(data: {string}, size, position, opacity, filled, outlined,
 	self.in_position = {}
 	self.chosen = {}
 	self.og_col = t.BoxFill
+	children[self] = true
 	return self
 end
 
@@ -663,6 +746,7 @@ function Dropdown:Draw()
 				children[self.rects[i]] = nil
 			end
 		end
+		self.last_header_pos = self.position
 	end
 	local current_header_pos = self.rects[1].position
 	if self.last_header_pos and current_header_pos ~= self.last_header_pos then
@@ -760,7 +844,6 @@ end
 
 local Slider = {}
 Slider.__index = Slider
-ui.Slider = Slider
 --(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, main_window, title: string?)
 function Slider.new(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, min, max, value)
 	local self = setmetatable({}, Slider)
@@ -883,7 +966,7 @@ end
 
 --main
 
-function ui.hide(hide_key: string)
+function hide(hide_key: string)
 	local keys = getpressedkeys()
 	for _, key in pairs(keys) do
 		if key == hide_key then
@@ -893,7 +976,21 @@ function ui.hide(hide_key: string)
 	end
 	return false
 end
-
-
+ui.Slider = Slider
+ui.Dropdown = Dropdown
+ui.Tabs = Tabs
+ui.Tab = Tab
+ui.Rectangle = Rectangle
+ui.Button = Button
+ui.Checkbox = Checkbox
+ui.drag = drag
+ui.hide = hide
+ui.TextBox = TextBox
+ui.linear = linear
+ui.slide_up = slide_up
+ui.update_animations = update_animations
+ui.bounce = bounce
+ui.pop = pop
+ui.Themes = Themes
 
 return ui
