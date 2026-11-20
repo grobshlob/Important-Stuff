@@ -8,7 +8,7 @@ A Luau utility module for calculating 3D bounding box corner coordinates and ren
 
 ```luau
 local RunService = game:GetService("RunService")
-local box3d = loadstring(game:HttpGet("path_to_module"))() -- or require(path)
+local box3d = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/esp/module.luau"))() 
 
 local targetPart = workspace:WaitForChild("Part")
 
