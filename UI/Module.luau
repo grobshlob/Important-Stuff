@@ -385,7 +385,7 @@ local lp_name = lp.Name
 local Rectangle = {}
 Rectangle.__index = Rectangle
 
-function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, main_window, title: string?)
+function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, main_window, title: string?, slider: boolean?)
 	local self = setmetatable({}, Rectangle)
 	self.size = size
 	self.position = position
@@ -403,6 +403,7 @@ function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlin
 	self.animated = false
 	self.anim_started = false
 	self.resized = false
+	self.slider = slider or false
 	if self.main_window then
 		self.draggable = true
 	else
@@ -434,7 +435,10 @@ function Rectangle:Draw()
 	local size = self.size
 	local position = self.position
 
-	local fill_col = self.color or (self.main_window and Themes[self.theme].MainBG or Themes[self.theme].BoxFill)
+	local fill_col = self.color or self.main_window and Themes[self.theme].MainBG or Themes[self.theme].BoxFill
+	if self.slider then
+		fill_col = Themes[self.theme].Selected
+	end
 	local outline_col = self.outline_color or Themes[self.theme].Outline
 	local text_col = self.text_color or Themes[self.theme].Text
 	local accent_col = Themes[self.theme].Accent
@@ -985,7 +989,21 @@ function Slider.new(size: Vector2, position: Vector2, opacity, filled, outlined,
 		thickness,
 		false
 	)
+	self.fill_rect = Rectangle.new(
+		Vector2.new(self.value * 2, size.Y),
+		position,
+		opacity,
+		filled,
+		outlined,
+		theme,
+		roundness,
+		thickness,
+		false,
+		_,
+		true
+	)
 	children[self.rect] = nil
+	children[self.fill_rect] = nil
 	children[self] = true
 
 	self.rects = {}
@@ -1060,7 +1078,10 @@ end
 function Slider:Draw()
 	refresh_theme(self)
 	self.rect.position = self.position
+	self.fill_rect.position = self.position
+	self.fill_rect.size = Vector2.new(self.value * 2, self.size.Y)
 	self.rect:Draw()
+	self.fill_rect:Draw()
 
 	for _, segment in ipairs(self.rects) do
 		segment:Draw()
