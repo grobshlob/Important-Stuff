@@ -99,7 +99,7 @@ task.spawn(function()
 	end
 end)
 -- Render loop
-RunService.Render:Connect(function(dt)
+RunService.RenderUnrestricted:Connect(function(dt)
 	if hidden then return end
     local is_pressed = isleftpressed()
     local pressed = is_pressed and not was_pressed
