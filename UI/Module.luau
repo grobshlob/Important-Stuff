@@ -545,6 +545,7 @@ function Button.new(size, position: Vector2, opacity, filled, outlined, theme: s
 	self.roundness = roundness
 	self.thickness = thickness
 	self.rect = nil
+	self.textbox = nil
 	self.activated_color = Themes[self.theme].Selected
 	self.hovering = false
 	self.activated = false
@@ -555,7 +556,7 @@ end
 
 function Button:Draw()
 	refresh_theme(self)
-	if not self.rect and not self.text then
+	if not self.rect then
 		self.rect = Rectangle.new(
 			self.size,
 			self.position,
@@ -567,12 +568,13 @@ function Button:Draw()
 			self.thickness,
 			false
 		)
-	elseif not self.rect and self.text then
-		self.rect = TextBox.new(
+	end
+	if not self.textbox then
+		self.textbox = TextBox.new(
 			self.size.Y - 5,
 			self.size, 
 			self.position,
-			self.opacity,
+			0,
 			self.opacity,
 			self.filled,
 			self.outlined,
@@ -584,8 +586,8 @@ function Button:Draw()
 		)
 	end
 	self.rect:Draw(1)
+	self.textbox:Draw()
 end
-
 function Button:Clicked(pressed)
 	local mpos = userinput:GetMouseLocation()
 
