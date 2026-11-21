@@ -17,7 +17,6 @@ function dog:walk()
 	self.position = self.position * 5
 end
 ]]
-local ui = {}
 local function draw_cat(center: Vector2, scale: number, color: Color3, opacity: number, thickness: number)
 	local function line(x1: number, y1: number, x2: number, y2: number)
 		local p1 = center + Vector2.new(x1 * scale, y1 * scale)
@@ -57,8 +56,12 @@ local function draw_cat(center: Vector2, scale: number, color: Color3, opacity: 
 	line( 0.62, 0.18,  1.05, 0.1)
 	line( 0.62, 0.34,  1.05, 0.4)
 end
-
+local RunService = game:GetService("RunService")
 local userinput = game:GetService("UserInputService")
+local ws = game:GetService("Workspace")
+local camera = ws.CurrentCamera
+local viewport = camera.ViewportSize
+
 local children = {}
 
 --helpers
@@ -99,6 +102,14 @@ function drag(main_window)
 	else
 		dragging = false
 	end
+end
+
+function table_size(table_)
+	local count = 0
+	for _, v in pairs(table_) do
+		count += 1
+	end
+	return count
 end
 --animations
 local animations = {}
@@ -202,95 +213,123 @@ end
 
 local Themes = {
 	Catppuccin = {
-		MainBG   = Color3.fromRGB(24, 24, 37),--    #181825 Mantle Dark
-		BoxFill  = Color3.fromRGB(49, 50, 68),--    #313244 Surface0
-		Outline  = Color3.fromRGB(137, 180, 250),-- #89B4FA Soft Sapphire
-		Accent   = Color3.fromRGB(69, 71, 90),--    #45475A Subtle Border
-		Selected = Color3.fromRGB(203, 166, 247),-- #CBA6F7 Mauve Highlight
-		Text     = Color3.fromRGB(205, 214, 244),-- #CDD6F4 Crisp Soft White
+		MainBG   = Color3.fromRGB(24, 24, 37),    -- #181825 Mantle Dark
+		BoxFill  = Color3.fromRGB(49, 50, 68),    -- #313244 Surface0
+		Outline  = Color3.fromRGB(137, 180, 250), -- #89B4FA Soft Sapphire
+		Accent   = Color3.fromRGB(69, 71, 90),    -- #45475A Subtle Border
+		Selected = Color3.fromRGB(203, 166, 247), -- #CBA6F7 Mauve Highlight
+		Text     = Color3.fromRGB(205, 214, 244), -- #CDD6F4 Crisp Soft White
 	},
 
-	Emerald_Glass = {
-		MainBG   = Color3.fromRGB(14, 20, 18),--    #0E1412 Deep Forest Charcoal
-		BoxFill  = Color3.fromRGB(24, 34, 30),--    #18221E Card Surface
-		Outline  = Color3.fromRGB(16, 185, 129),--  #10B981 Modern Emerald
-		Accent   = Color3.fromRGB(39, 54, 48),--    #273630 Muted Sage Border
-		Selected = Color3.fromRGB(5, 150, 105),--   #059669 Active Emerald
-		Text     = Color3.fromRGB(236, 253, 245),-- #ECFDF5 Mint White
+	MonokaiPro = {
+		MainBG   = Color3.fromRGB(34, 31, 34),    -- #221F22 Obsidian
+		BoxFill  = Color3.fromRGB(45, 42, 46),    -- #2D2A2E Charcoal
+		Outline  = Color3.fromRGB(120, 220, 232), -- #78DCE8 Electric Cyan
+		Accent   = Color3.fromRGB(64, 62, 65),    -- #403E41 Dim Border
+		Selected = Color3.fromRGB(255, 97, 136),  -- #FF6188 Neon Rose
+		Text     = Color3.fromRGB(252, 252, 250), -- #FCFCFA Pure Off-White
 	},
 
-	Royal_Gold = {
-		MainBG   = Color3.fromRGB(15, 14, 13),--    #0F0E0D Obsidian Black
-		BoxFill  = Color3.fromRGB(28, 26, 23),--    #1C1A17 Warm Charcoal
-		Outline  = Color3.fromRGB(234, 179, 8),--   #EAB308 Rich Gold
-		Accent   = Color3.fromRGB(54, 49, 41),--    #363129 Muted Bronze
-		Selected = Color3.fromRGB(202, 138, 4),--   #CA8A04 Deep Amber Gold
-		Text     = Color3.fromRGB(250, 245, 235),-- #FAF5EB Ivory White
-	},
-
-	Rose_Pine = {
-		MainBG   = Color3.fromRGB(25, 23, 36),--    #191724 Base
-		BoxFill  = Color3.fromRGB(38, 35, 58),--    #26233A Overlay
-		Outline  = Color3.fromRGB(235, 188, 186),-- #EBBCBA Rose
-		Accent   = Color3.fromRGB(64, 61, 82),--    #403D52 Highlight Med
-		Selected = Color3.fromRGB(235, 111, 146),-- #EB6F92 Love Pink
-		Text     = Color3.fromRGB(224, 222, 244),-- #E0DEF4 Soft White
-	},
-
-	Gruvbox_Dark = {
-		MainBG   = Color3.fromRGB(29, 32, 33),--    #1D2021 Hard Dark
-		BoxFill  = Color3.fromRGB(50, 48, 47),--    #32302F Warm Stone
-		Outline  = Color3.fromRGB(254, 128, 25),--  #FE8019 Warm Orange
-		Accent   = Color3.fromRGB(80, 73, 69),--    #504945 Muted Brown-Grey
-		Selected = Color3.fromRGB(142, 192, 124),-- #8EC07C Sage Aqua
-		Text     = Color3.fromRGB(235, 219, 178),-- #EBDBB2 Cream Text
-	},
-
-	Crimson_Carbon = {
-		MainBG   = Color3.fromRGB(16, 16, 18),--    #101012 Carbon Black
-		BoxFill  = Color3.fromRGB(28, 28, 32),--    #1C1C20 Dark Gunmetal
-		Outline  = Color3.fromRGB(239, 68, 68),--   #EF4444 Modern Crimson
-		Accent   = Color3.fromRGB(52, 52, 60),--    #34343C Steel Border
-		Selected = Color3.fromRGB(220, 38, 38),--   #DC2626 Active Red
-		Text     = Color3.fromRGB(244, 244, 245),-- #F4F4F5 Clean Off-White
-	},
-
-	Phantom_Violet = {
-		MainBG   = Color3.fromRGB(17, 13, 23),--    #110D17 Deep Plum Black
-		BoxFill  = Color3.fromRGB(30, 23, 41),--    #1E1729 Dark Violet
-		Outline  = Color3.fromRGB(168, 85, 247),--  #A855F7 Electric Purple
-		Accent   = Color3.fromRGB(52, 40, 71),--    #342847 Muted Plum
-		Selected = Color3.fromRGB(147, 51, 234),--  #9333EA Vivid Violet
-		Text     = Color3.fromRGB(243, 232, 255),-- #F3E8FF Soft Lavender White
+	SolarizedDark = {
+		MainBG   = Color3.fromRGB(0, 43, 54),     -- #002B36 Base03
+		BoxFill  = Color3.fromRGB(7, 54, 66),     -- #073642 Base02
+		Outline  = Color3.fromRGB(38, 139, 210),  -- #268BD2 Solar Blue
+		Accent   = Color3.fromRGB(88, 110, 117),  -- #586E75 Base01
+		Selected = Color3.fromRGB(42, 161, 152),  -- #2AA198 Solar Cyan
+		Text     = Color3.fromRGB(147, 161, 161), -- #93A1A1 Base1
 	},
 
 	Monochrome = {
-		MainBG   = Color3.fromRGB(14, 14, 14),--    #0E0E0E Matte Black
-		BoxFill  = Color3.fromRGB(28, 28, 28),--    #1C1C1C Dark Grey
-		Outline  = Color3.fromRGB(212, 212, 212),-- #D4D4D4 Silver White
-		Accent   = Color3.fromRGB(56, 56, 56),--    #383838 Neutral Grey
-		Selected = Color3.fromRGB(115, 115, 115),-- #737373 Slate Highlight
-		Text     = Color3.fromRGB(245, 245, 245),-- #F5F5F5 Pure Off-White
+		MainBG   = Color3.fromRGB(14, 14, 14),    -- #0E0E0E Matte Black
+		BoxFill  = Color3.fromRGB(28, 28, 28),    -- #1C1C1C Dark Grey
+		Outline  = Color3.fromRGB(212, 212, 212), -- #D4D4D4 Silver White
+		Accent   = Color3.fromRGB(56, 56, 56),    -- #383838 Neutral Grey
+		Selected = Color3.fromRGB(115, 115, 115), -- #737373 Slate Highlight
+		Text     = Color3.fromRGB(245, 245, 245), -- #F5F5F5 Pure Off-White
 	},
 
-	Toxic_Lime = {
-		MainBG   = Color3.fromRGB(13, 16, 13),--    #0D100D Pitch Moss
-		BoxFill  = Color3.fromRGB(23, 29, 23),--    #171D17 Dark Olive Slate
-		Outline  = Color3.fromRGB(132, 204, 22),--  #84CC16 Acid Lime
-		Accent   = Color3.fromRGB(43, 54, 43),--    #2B362B Muted Forest
-		Selected = Color3.fromRGB(101, 163, 13),--  #65A30D Active Lime
-		Text     = Color3.fromRGB(247, 254, 231),-- #F7FEE7 Crisp Lime White
+	JadeHorizon = {
+		MainBG   = Color3.fromRGB(26, 81, 64),    -- #1A5140 Deep Forest[cite: 1]
+		BoxFill  = Color3.fromRGB(40, 135, 96),   -- #288760 Emerald Surface[cite: 1]
+		Outline  = Color3.fromRGB(183, 229, 186), -- #B7E5BA Mint Highlight[cite: 1]
+		Accent   = Color3.fromRGB(92, 168, 124),  -- #5CA87C Sage Border[cite: 1]
+		Selected = Color3.fromRGB(183, 229, 186), -- #B7E5BA Soft Mint[cite: 1]
+		Text     = Color3.fromRGB(235, 248, 237), -- #EBF8ED Crisp Mint White[cite: 1]
 	},
 
-	Frost_Light = {
-		MainBG   = Color3.fromRGB(244, 245, 248),-- #F4F5F8 Soft Cool Grey
-		BoxFill  = Color3.fromRGB(255, 255, 255),-- #FFFFFF Pure Card White
-		Outline  = Color3.fromRGB(59, 130, 246),--  #3B82F6 Crisp Royal Blue
-		Accent   = Color3.fromRGB(209, 213, 219),-- #D1D5DB Subtle Divider
-		Selected = Color3.fromRGB(37, 99, 235),--   #2563EB Active Blue
-		Text     = Color3.fromRGB(17, 24, 39),--    #111827 Deep Charcoal Text
+	AbyssalSlate = {
+		MainBG   = Color3.fromRGB(6, 20, 27),     -- #06141B Obsidian Navy[cite: 2]
+		BoxFill  = Color3.fromRGB(17, 33, 45),    -- #11212D Midnight Slate[cite: 2]
+		Outline  = Color3.fromRGB(155, 168, 171), -- #9BA8AB Mist Grey[cite: 2]
+		Accent   = Color3.fromRGB(37, 55, 69),    -- #253745 Deep Steel[cite: 2]
+		Selected = Color3.fromRGB(74, 92, 106),   -- #4A5C6A Storm Blue[cite: 2]
+		Text     = Color3.fromRGB(204, 208, 207), -- #CCD0CF Pale Silver[cite: 2]
+	},
+
+	VelvetPlum = {
+		MainBG   = Color3.fromRGB(0, 3, 14),      -- #00030E Void Night[cite: 3]
+		BoxFill  = Color3.fromRGB(11, 14, 26),    -- #0B0E1A Midnight Indigo[cite: 3]
+		Outline  = Color3.fromRGB(180, 122, 154), -- #B47A9A Dusty Rose[cite: 3]
+		Accent   = Color3.fromRGB(44, 27, 47),    -- #2C1B2F Dark Aubergine[cite: 3]
+		Selected = Color3.fromRGB(94, 58, 92),    -- #5E3A5C Muted Plum[cite: 3]
+		Text     = Color3.fromRGB(243, 233, 236), -- #F3E9EC Soft Blush White[cite: 3]
+	},
+
+	AutumnTimber = {
+		MainBG   = Color3.fromRGB(19, 25, 31),    -- #13191F River Styx[cite: 4]
+		BoxFill  = Color3.fromRGB(43, 47, 46),    -- #2B2F2E Carbon Fibre[cite: 4]
+		Outline  = Color3.fromRGB(202, 156, 104), -- #CA9C68 Amber Autumn[cite: 4]
+		Accent   = Color3.fromRGB(89, 76, 61),    -- #594C3D Afternoon Tea[cite: 4]
+		Selected = Color3.fromRGB(144, 109, 75),  -- #906D4B Tanned Wood[cite: 4]
+		Text     = Color3.fromRGB(238, 224, 206), -- #EEE0CE Warm Parchment[cite: 4]
+	},
+
+	EspressoCrema = {
+		MainBG   = Color3.fromRGB(47, 41, 39),    -- #2F2927 Noir[cite: 5]
+		BoxFill  = Color3.fromRGB(106, 83, 73),   -- #6A5349 Bargeboard Brown[cite: 5]
+		Outline  = Color3.fromRGB(216, 186, 166), -- #D8BAA6 Maiko[cite: 5]
+		Accent   = Color3.fromRGB(143, 119, 106), -- #8F776A Chocolate Heart[cite: 5]
+		Selected = Color3.fromRGB(183, 158, 139), -- #B79E8B Midtown[cite: 5]
+		Text     = Color3.fromRGB(245, 236, 229), -- #F5ECE5 Warm Cream[cite: 5]
+	},
+	
+	WinterPine = {
+		MainBG   = Color3.fromRGB(39, 54, 63),    -- #27363F Pine[cite: 6]
+		BoxFill  = Color3.fromRGB(104, 86, 82),   -- #685652 Branch[cite: 6]
+		Outline  = Color3.fromRGB(142, 161, 174), -- #8EA1AE Mist[cite: 6]
+		Accent   = Color3.fromRGB(190, 179, 172), -- #BEB3AC Frosty Silver[cite: 6]
+		Selected = Color3.fromRGB(107, 33, 44),   -- #6B212C Berry[cite: 6]
+		Text     = Color3.fromRGB(220, 224, 232), -- #DCE0E8 Snowflake[cite: 6]
+	},
+
+	NavyCream = {
+		MainBG   = Color3.fromRGB(17, 50, 77),    -- #11324D Deep Navy[cite: 7]
+		BoxFill  = Color3.fromRGB(38, 76, 108), --   #264C6C  Elevated Navy
+		Outline  = Color3.fromRGB(193, 207, 192), -- #C1CFC0 Sage Mist[cite: 7]
+		Accent   = Color3.fromRGB(231, 224, 201), -- #E7E0C9 Warm Sand[cite: 7]
+		Selected = Color3.fromRGB(107, 122, 161), -- #6B7AA1  Slate Periwinkle
+		Text     = Color3.fromRGB(247, 244, 235), -- #F7F4EB Cream White[cite: 7]
+	},
+
+	RosewoodDawn = {
+		MainBG   = Color3.fromRGB(82, 88, 113),   -- #525871 Concrete[cite: 8]
+		BoxFill  = Color3.fromRGB(133, 124, 145), -- #857C91 Warm Steel[cite: 8]
+		Outline  = Color3.fromRGB(248, 204, 170), -- #F8CCAA Dawn[cite: 8]
+		Accent   = Color3.fromRGB(205, 159, 160), -- #CD9FA0 Rosewood[cite: 8]
+		Selected = Color3.fromRGB(242, 193, 163), -- #F2C1A3 Peaches & Cream[cite: 8]
+		Text     = Color3.fromRGB(248, 204, 170), -- #F8CCAA Soft Peach[cite: 8]
+	},
+
+	ChaosPeach = {
+		MainBG   = Color3.fromRGB(17, 15, 14),    -- #110F0E Chaos Black[cite: 9]
+		BoxFill  = Color3.fromRGB(41, 34, 34),    -- #292222 Gold Black[cite: 9]
+		Outline  = Color3.fromRGB(253, 227, 172), -- #FDE3AC Pale Peach[cite: 9]
+		Accent   = Color3.fromRGB(74, 61, 58),    -- #4A3D3A Dobunezumi Brown[cite: 9]
+		Selected = Color3.fromRGB(156, 120, 106), -- #9C786A Woodhaven[cite: 9]
+		Text     = Color3.fromRGB(253, 227, 172), -- #FDE3AC Warm Peach[cite: 9]
 	},
 }
+
 
 --extra
 local pl = game.Players
@@ -384,7 +423,7 @@ end
 local TextBox = {}
 TextBox.__index = TextBox
 
-function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacity_text, filled, outlined, outlined_text, roundness, thickness, theme: string, text)
+function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacity_text, filled, outlined, outlined_text, roundness, thickness, theme: string, text, centered: boolean?)
 	local self = setmetatable({}, TextBox)
 	local t = Themes[theme]
 
@@ -415,6 +454,7 @@ function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacit
 		self.thickness,
 		false
 	)
+	self.centered = centered or false
 	children[self.rect] = nil
 	children[self] = true
 	return self
@@ -427,12 +467,14 @@ function TextBox:Draw()
 	self.rect.color = self.color_box
 	self.rect.outline_color = self.outline_color
 	self.rect:Draw(1)
-
 	local text_pos = self.position + Vector2.new(8, 2)
+	if self.centered then 
+		text_pos = self.position + Vector2.new(self.size.X / 2, self.size.Y / 4)
+	end
 	if self.outlined_text then
 		DrawingImmediate.OutlinedText(text_pos, self.size_text, self.color_text, self.opacity_text, self.text, false, "Nunito")
 	else
-		DrawingImmediate.Text(text_pos, self.size_text, self.color_text, self.opacity_text, self.text, false, "Nunito")
+		DrawingImmediate.Text(text_pos, self.size_text, self.color_text, self.opacity_text, self.text, self.centered, "Nunito")
 	end
 end
 
@@ -593,12 +635,25 @@ function Tabs:Draw(pressed: boolean, is_pressed: boolean)
 		if tab.index == Tabs.active then
 			for _, child in ipairs(tab.instances) do
 				child:Draw()
+
 				if child.Clicked then
 					child:Clicked(pressed)
-				elseif child.Dropped then
+				end
+
+				if child.Dropped then
 					child:Dropped(pressed)
-				elseif child.Update then
+				end
+
+				if child.Update then
 					child:Update(pressed, is_pressed)
+				end
+
+				if child.Set then
+					child:Set()
+				end
+
+				if child.Check then
+					child:Check()
 				end
 			end
 		end
@@ -609,10 +664,10 @@ end
 
 local Checkbox = {}
 Checkbox.__index = Checkbox
-function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?, default: boolean?)
+function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?)
 	local self = setmetatable({}, Checkbox)
 	local t = Themes[theme] or Themes.Catppuccin
-	local initial = defualt == true
+
 	self.size = size
 	self.position = position
 	self.opacity = opacity
@@ -628,10 +683,7 @@ function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme:
 	self.activated_color = t.Selected
 	self.hovering = false
 	self.activated = false
-	self.state = inital
-	if initial and self.callback then
-		self.callback(true)
-	end
+	self.state = false
 	children[self] = true
 	return self
 end
@@ -670,17 +722,15 @@ function Checkbox:Clicked(pressed)
 		if not self.activated then
 			self.activated = true
 			self.state = true
-			if self.callback then
-				self.callback(self.state)
-			end
+			self.callback(self.state)
 		else
 			self.activated = false
 			self.state = false
-			if self.callback then
-				self.callback(self.state)
-			end
+			self.callback(self.state)
 		end
 		bounce(self.rect, 0.1, 1.1)
+
+
 	end
 	if self.activated then
 		self.rect.color = self.activated_color
@@ -698,7 +748,7 @@ end
 local Dropdown = {}
 Dropdown.__index = Dropdown
 
-function Dropdown.new(data: {string}, size, position, opacity, filled, outlined, theme: string, roundness, thickness)
+function Dropdown.new(data: {string}, size, position, opacity, filled, outlined, theme: string, roundness, thickness, max)
 	local self = setmetatable({}, Dropdown)
 	local t = Themes[theme] or Themes.Catppuccin
 
@@ -718,6 +768,11 @@ function Dropdown.new(data: {string}, size, position, opacity, filled, outlined,
 	self.text_color = t.Text
 	self.hovering = false
 	self.dropped = false
+	if not max then
+		self.max = #data
+	else
+		self.max = max
+	end
 	self.rects = {}
 	self.in_position = {}
 	self.chosen = {}
@@ -730,6 +785,7 @@ function Dropdown:Draw()
 	local amount_of_options = #self.data
 	if #self.rects ~= amount_of_options then
 		for i = 1, amount_of_options do
+			if i == amount_of_options or i == 1 then roundness = self.roundness end
 			local item_opacity = (i == 1) and 1 or 0
 			self.rects[i] = TextBox.new(
 				self.size.Y - 10,
@@ -821,12 +877,15 @@ function Dropdown:Dropped(pressed)
 		elseif self.dropped and vector.magnitude(pos - target_pos) < 1 then
 			if hovering and pressed then
 				local found_index = table.find(self.chosen, self.data[i])
-				if not found_index then
-					table.insert(self.chosen, self.data[i])
-					box.selected = true
-				else
+				local tablesize = table_size(self.chosen)
+				if found_index then
 					table.remove(self.chosen, found_index)
 					box.selected = false
+					box.color_box = self.og_col
+
+				elseif tablesize < self.max then
+					table.insert(self.chosen, self.data[i])
+					box.selected = true
 				end
 			end
 		end
@@ -967,6 +1026,117 @@ function Slider:Draw()
 	)
 end
 
+local Keybind = {}
+Keybind.__index = Keybind
+
+function Keybind.new(text_size, size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, start_key: string?)
+	local self = setmetatable({}, Keybind)
+	self.size = size
+	self.text_size = text_size
+	self.position = position
+	self.opacity = opacity
+	self.filled = filled
+	self.outlined = outlined
+	self.theme = theme
+	self.roundness = roundness
+	self.thickness = thickness
+	self.start_key = start_key
+	self.current_key = start_key or "Not Set"
+	self.clicked = false
+	self.hovering = false
+	self.activated = false
+	self.rect = Rectangle.new(
+		self.size,
+		self.position,
+		self.opacity,
+		self.filled,
+		self.outlined,
+		self.theme,
+		self.roundness,
+		self.thickness,
+		false
+	)
+	--(size_text, size_box, position: Vector2, opacity_box, opacity_text, filled, outlined, outlined_text, roundness, thickness, theme: string, text)
+	self.textbox = TextBox.new(
+		self.text_size,
+		self.size,
+		self.position,
+		self.opacity,
+		self.opacity,
+		self.filled,
+		self.outlined,
+		false,
+		self.roundness,
+		self.thickness,
+		self.theme,
+		self.current_key,
+		true
+	)
+	self.was_pressed = false
+	children[self.rect] = true
+	children[self.textbox] = true
+	return self
+end
+
+function Keybind:Draw()
+	local t = Themes[self.theme]
+	if self.clicked then
+		self.current_key = ""
+		DrawingImmediate.Line(self.rect.position + Vector2.new(8, self.size.Y - 5), self.rect.position + Vector2.new(self.size.X - 8, self.size.Y - 5), t.Accent, self.opacity, self.thickness, self.thickness)
+	end
+	self.textbox.text = self.current_key
+	self.rect:Draw()
+	self.textbox:Draw()
+end
+
+function Keybind:Clicked(pressed)
+    local mpos = userinput:GetMouseLocation()
+
+    local pos = self.rect.position
+    local size = self.size
+
+    local x_dist = mpos.X - pos.X
+    local y_dist = mpos.Y - pos.Y
+
+    self.hovering =
+        x_dist >= 0 and y_dist >= 0
+        and x_dist <= size.X and y_dist <= size.Y
+
+    if pressed and self.hovering then
+        self.clicked = not self.clicked
+        bounce(self.rect, 0.1, 1.1)
+		bounce(self.textbox, 0.1, 1.1)
+    end
+end
+
+function Keybind:Set()
+    if not self.clicked then return end
+
+    if isleftpressed() then return end
+
+    local keys = getpressedkeys()
+
+    for _, key in ipairs(keys) do
+        if key then
+            local key_name = tostring(key)
+
+            if key_name ~= "M1" and key_name ~= "MouseButton1" then
+                self.current_key = key_name
+                self.start_key = key_name
+                self.clicked = false
+                break
+            end
+        end
+    end
+end
+
+function Keybind:Check()
+    local key = self.current_key
+    local pressed = table.find(getpressedkeys(), key) ~= nil
+
+    self.activated = pressed and not self.was_activated
+    self.was_activated = pressed
+end
 --main
 
 function hide(hide_key: string)
@@ -979,6 +1149,8 @@ function hide(hide_key: string)
 	end
 	return false
 end
+
+ui.Keybind = Keybind
 ui.Slider = Slider
 ui.Dropdown = Dropdown
 ui.Tabs = Tabs
