@@ -17,6 +17,8 @@ function dog:walk()
 	self.position = self.position * 5
 end
 ]]
+local ui = {}
+
 local function draw_cat(center: Vector2, scale: number, color: Color3, opacity: number, thickness: number)
 	local function line(x1: number, y1: number, x2: number, y2: number)
 		local p1 = center + Vector2.new(x1 * scale, y1 * scale)
