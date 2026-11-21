@@ -837,8 +837,7 @@ function Dropdown:Draw()
 	local amount_of_options = #self.data
 	if #self.rects ~= amount_of_options then
 		for i = 1, amount_of_options do
-			if i == amount_of_options or i == 1 then roundness = self.roundness end
-			local item_opacity = (i == 1) and 1 or 0
+			local item_opacity = (i == 1) and self.opacity or 0
 			self.rects[i] = TextBox.new(
 				self.size.Y - 10,
 				self.size,
@@ -918,8 +917,8 @@ function Dropdown:Dropped(pressed)
 					local row = self.rects[j]
 					local row_target = base_pos + Vector2.new(0, self.size.Y * (j - 1))
 					if self.dropped then
-						row.opacity_box = 1
-						row.opacity_text = 1
+						row.opacity_box = self.opacity
+						row.opacity_text = self.opacity
 						linear(row.position, row_target, row, 0.15)
 					else
 						linear(row.position, base_pos, row, 0.15)
