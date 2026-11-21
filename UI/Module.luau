@@ -1234,7 +1234,7 @@ function ui.SetTheme(theme: string): boolean
 end
 local version = game.GetClientVersion()
 local theo = game:HttpGet("https://offsets.imtheo.lol/" .. version .. "/offsets.json")
-local decoded = crypt.json.decode(theo)
+local decoded = crypt.json.decode(theo).Offsets
 local uis = decoded.UserInputService
 local input_state = uis.WindowInputState
 local current_textbox = decoded.WindowInputState.CurrentTextBox
