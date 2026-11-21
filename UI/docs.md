@@ -19,6 +19,7 @@ local ui = loadstring(game:HttpGet(
 local RunService = game:GetService("RunService")
 
 local theme = "NavyCream"
+local active_theme = theme
 
 local window = ui.Rectangle.new(
     Vector2.new(600, 400),
@@ -44,9 +45,12 @@ local checkbox = ui.Checkbox.new(
         print("Checkbox state:", state)
     end
 )
-
+local data = {"Themes"}
+for theme, color in pairs(ui.Themes) do
+	table.insert(data, theme)
+end
 local dropdown = ui.Dropdown.new(
-    {"Themes", "NavyCream", "Monochrome", "Catppuccin"},
+    data,
     Vector2.new(200, 40),
     Vector2.new(630, 660),
     1, true, true, theme, 15, 3, 1
@@ -66,6 +70,7 @@ local keybind = ui.Keybind.new(
     1, true, true, theme, 15, 3, "F"
 )
 
+-- Tabs
 local main_tab = ui.Tab.new("Main", 1, Vector2.new(100, 32))
 local settings_tab = ui.Tab.new("Settings", 2, Vector2.new(100, 32))
 
@@ -79,40 +84,58 @@ settings_tab:Add(checkbox)
 settings_tab:Add(dropdown)
 settings_tab:Add(keybind)
 
+-- Input tracking
 local was_pressed = false
 
--- Use the render signal supported by your environment.
+-- Render loop
 RunService.Render:Connect(function(dt)
     local is_pressed = isleftpressed()
     local pressed = is_pressed and not was_pressed
+
     was_pressed = is_pressed
 
+    -- Draw window
     window:Draw()
+
+    -- Update animations
     ui.update_animations(dt)
 
-    if window.animated then
-        ui.Tabs:Draw(pressed, is_pressed)
+    if not window.animated then
+        return
+    end
 
-        if ui.Tabs.active == 2 then
-            local selected_theme = dropdown.chosen[1]
-            if selected_theme and ui.Themes[selected_theme] then
-                window.theme = selected_theme
-            end
+    -- Draw tabs and their contents
+    ui.Tabs:Draw(pressed, is_pressed)
 
-            if keybind.activated then
-                print("Pressed:", keybind.current_key)
-            end
-        end
+    -- Theme selection
+    if ui.Tabs.active == 2 then
+        local selected_theme = dropdown.chosen[1]
 
-        if window.draggable
-            and not slider.dragging
-            and not checkbox.hovering
-            and not button.hovering
-            and not dropdown.hovering
-            and not keybind.hovering
+        if selected_theme
+            and ui.Themes[selected_theme]
+            and selected_theme ~= active_theme
         then
-            ui.drag(window)
+            if ui.SetTheme(selected_theme) then
+                active_theme = selected_theme
+                print("Theme changed to:", active_theme)
+            end
         end
+
+        -- Keybind detection
+        if keybind.activated then
+            print("Pressed:", keybind.current_key)
+        end
+    end
+
+    -- Window dragging
+    if window.draggable
+        and not slider.dragging
+        and not checkbox.hovering
+        and not button.hovering
+        and not dropdown.hovering
+        and not keybind.hovering
+    then
+        ui.drag(window)
     end
 end)
 ```
