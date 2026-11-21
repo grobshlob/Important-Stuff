@@ -133,7 +133,7 @@ RunService.Render:Connect(function(dt)
         end
 
         -- Keybind detection
-        if keybind.activated then
+        if keybind.activated and not ui.Typing() then
             print("Pressed:", keybind.current_key)
         end
     end
@@ -188,6 +188,7 @@ The module exports these members:
 | `ui.bounce` | Sine-based size bounce |
 | `ui.slide_up` | Vertical size expansion |
 | `ui.update_animations` | Advances active animations |
+| `ui.Typing` | Detects if the user is currently typing |
 
 ## Themes
 
