@@ -5,8 +5,6 @@ An immediate-mode Luau UI library built on `DrawingImmediate`. The module provid
 
 This documentation is based on the uploaded module and its accompanying test script. The test script is an example harness; the reusable library ends before the test section.
 
-> **Module setup note:** the uploaded module assigns its exports to `ui` and returns `ui`, but does not declare `ui` in the uploaded source. In a standalone ModuleScript, add `local ui = {}` near the top of the module (before the exports near the bottom), otherwise the returned export table is not initialized.
-
 ## Quick start
 
 The test script uses a `Rectangle` as the main window, creates widgets, registers tabs, and updates the UI from a render callback.
@@ -129,6 +127,7 @@ RunService.Render:Connect(function(dt)
 
     -- Window dragging
     if window.draggable
+		--check to see if the user is using an element
         and not slider.dragging
         and not checkbox.hovering
         and not button.hovering
@@ -152,7 +151,6 @@ was_pressed = is_pressed
 
 Pass both values to `ui.Tabs:Draw(pressed, is_pressed)`. `pressed` is for click events; `is_pressed` is for held interactions such as dragging a slider.
 
-The library also expects the environment to provide `getpressedkeys()`, `isleftpressed()`, `DrawingImmediate`, and the input APIs used in the module.
 
 ## Exports
 
@@ -252,7 +250,7 @@ ui.Rectangle.new(
 
 ### TextBox
 
-Draws text over a styled rectangle. `centered` is an optional final argument in the uploaded module.
+Draws text over a styled rectangle. `centered` is an optional final argument in the uploaded module, and it will determine the center of the box so the developer does not have to (since Severe draws from the top-left).
 
 ```luau
 ui.TextBox.new(
