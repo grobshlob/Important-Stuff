@@ -1,324 +1,620 @@
-
+[UI_Library_Documentation(1).md](https://github.com/user-attachments/files/35196856/UI_Library_Documentation.1.md)
 # UI Library Documentation
 
-An immediate-mode Luau UI library built on `DrawingImmediate`, featuring built-in theming, window dragging, pop/bounce/slide animations, tabs, and modular UI components.
+An immediate-mode Luau UI library built on `DrawingImmediate`. The module provides themed rectangles, text boxes, buttons, checkboxes, multi-select dropdowns, sliders, keybinds, tabs, dragging, and simple size/position animations.
 
-## Quick Start
+This documentation is based on the uploaded module and its accompanying test script. The test script is an example harness; the reusable library ends before the test section.
 
-Load the module, instantiate your components, and render them inside `RunService.Render` (or `RenderUnrestricted`). Track `isleftpressed()` **once** per frame to derive a single-frame `pressed` flag, then pass `pressed` and `is_pressed` into `ui.Tabs:Draw`.
+> **Module setup note:** the uploaded module assigns its exports to `ui` and returns `ui`, but does not declare `ui` in the uploaded source. In a standalone ModuleScript, add `local ui = {}` near the top of the module (before the exports near the bottom), otherwise the returned export table is not initialized.
+
+## Quick start
+
+The test script uses a `Rectangle` as the main window, creates widgets, registers tabs, and updates the UI from a render callback.
 
 ```luau
-local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/UI/Module.luau"))()
+local ui = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/UI/Module.luau"
+))()
+
 local RunService = game:GetService("RunService")
 
-local window = ui.Rectangle.new(Vector2.new(600, 400), Vector2.new(500, 500), 1, true, true, "Monochrome", 15, 3, true, "My Hub")
-local label = ui.TextBox.new(30, Vector2.new(200, 35), Vector2.new(640, 555), 1, 1, true, true, false, 10, 2, "Monochrome", "Status: Ready")
-local dropdown = ui.Dropdown.new({"Options", "Option 1", "Option 2"}, Vector2.new(150, 45), Vector2.new(640, 660), 1, true, true, "Monochrome", 12, 2)
+local theme = "NavyCream"
 
-local button = ui.Button.new(Vector2.new(150, 40), Vector2.new(640, 605), 1, true, true, "Monochrome", 10, 2, function()
-	print("Button clicked!")
-end, "Click Me")
-
-local checkbox = ui.Checkbox.new(Vector2.new(30, 30), Vector2.new(850, 605), 1, true, true, "Monochrome", 6, 2, function(state)
-	print("Checkbox state:", state)
-end)
-
-local slider = ui.Slider.new(
-	Vector2.new(200, 12),
-	Vector2.new(640, 730),
-	1,
-	true,
-	true,
-	"Monochrome",
-	6,
-	2,
-	0,
-	100,
-	50
+local window = ui.Rectangle.new(
+    Vector2.new(600, 400),
+    Vector2.new(500, 500),
+    1, true, true, theme, 15, 3, true, "My UI"
 )
 
-local tab1 = ui.Tab.new("Main", 1, Vector2.new(100, 32))
-local tab2 = ui.Tab.new("Visuals", 2, Vector2.new(100, 32))
+local button = ui.Button.new(
+    Vector2.new(150, 40),
+    Vector2.new(630, 605),
+    1, true, true, theme, 10, 2,
+    function()
+        print("Button clicked")
+    end,
+    "Click me"
+)
 
-tab1:Register(window)
-tab2:Register(window)
+local checkbox = ui.Checkbox.new(
+    Vector2.new(50, 50),
+    Vector2.new(860, 660),
+    1, true, true, theme, 10, 2,
+    function(state)
+        print("Checkbox state:", state)
+    end
+)
 
-tab1:Add(label)
-tab1:Add(button)
-tab1:Add(slider)
+local dropdown = ui.Dropdown.new(
+    {"Themes", "NavyCream", "Monochrome", "Catppuccin"},
+    Vector2.new(200, 40),
+    Vector2.new(630, 660),
+    1, true, true, theme, 15, 3, 1
+)
 
-tab2:Add(checkbox)
-tab2:Add(dropdown)
+local slider = ui.Slider.new(
+    Vector2.new(200, 12),
+    Vector2.new(630, 730),
+    1, true, true, theme, 6, 2,
+    0, 100, 50
+)
 
-local hidden = false
-local key_down = false
+local keybind = ui.Keybind.new(
+    15,
+    Vector2.new(40, 40),
+    Vector2.new(750, 760),
+    1, true, true, theme, 15, 3, "F"
+)
 
-task.spawn(function()
-	while task.wait(0.05) do
-		local is_pressed = ui.hide("Ctrl")
-		if is_pressed and not key_down then
-			hidden = not hidden
-		end
-		key_down = is_pressed
-	end
-end)
+local main_tab = ui.Tab.new("Main", 1, Vector2.new(100, 32))
+local settings_tab = ui.Tab.new("Settings", 2, Vector2.new(100, 32))
+
+main_tab:Register(window)
+settings_tab:Register(window)
+
+main_tab:Add(button)
+main_tab:Add(slider)
+
+settings_tab:Add(checkbox)
+settings_tab:Add(dropdown)
+settings_tab:Add(keybind)
 
 local was_pressed = false
 
-RunService.RenderUnrestricted:Connect(function(dt)
-	if not hidden then
-		local is_pressed = isleftpressed()
-		local pressed = is_pressed and not was_pressed
-		was_pressed = is_pressed
+-- Use the render signal supported by your environment.
+RunService.Render:Connect(function(dt)
+    local is_pressed = isleftpressed()
+    local pressed = is_pressed and not was_pressed
+    was_pressed = is_pressed
 
-		window:Draw()
-		ui.update_animations(dt)
+    window:Draw()
+    ui.update_animations(dt)
 
-		if window.animated then
-			ui.Tabs:Draw(pressed, is_pressed)
+    if window.animated then
+        ui.Tabs:Draw(pressed, is_pressed)
 
-			if window.draggable and not slider.dragging and not checkbox.hovering and not button.hovering and not dropdown.hovering then
-				ui.drag(window)
-			end
-		end
-	end
+        if ui.Tabs.active == 2 then
+            local selected_theme = dropdown.chosen[1]
+            if selected_theme and ui.Themes[selected_theme] then
+                window.theme = selected_theme
+            end
+
+            if keybind.activated then
+                print("Pressed:", keybind.current_key)
+            end
+        end
+
+        if window.draggable
+            and not slider.dragging
+            and not checkbox.hovering
+            and not button.hovering
+            and not dropdown.hovering
+            and not keybind.hovering
+        then
+            ui.drag(window)
+        end
+    end
 end)
-
 ```
+
+### Input timing
+
+`isleftpressed()` should be read once per frame. Derive `pressed` as the transition from released to held:
+
+```luau
+local is_pressed = isleftpressed()
+local pressed = is_pressed and not was_pressed
+was_pressed = is_pressed
+```
+
+Pass both values to `ui.Tabs:Draw(pressed, is_pressed)`. `pressed` is for click events; `is_pressed` is for held interactions such as dragging a slider.
+
+The library also expects the environment to provide `getpressedkeys()`, `isleftpressed()`, `DrawingImmediate`, and the input APIs used in the module.
+
+## Exports
+
+The module exports these members:
+
+| Export | Purpose |
+| --- | --- |
+| `ui.Rectangle` | Rectangle and main-window component |
+| `ui.TextBox` | Text inside a styled rectangle |
+| `ui.Button` | Clickable button |
+| `ui.Checkbox` | Boolean toggle |
+| `ui.Dropdown` | Animated multi-select list |
+| `ui.Slider` | Draggable numeric slider |
+| `ui.Keybind` | Key capture and key-press detection |
+| `ui.Tab` | Creates a tab |
+| `ui.Tabs` | Shared tab manager |
+| `ui.Themes` | Theme palette table |
+| `ui.drag` | Drags a main window and registered children |
+| `ui.hide` | Checks whether a key is currently pressed |
+| `ui.linear` | Position interpolation animation |
+| `ui.pop` | Centered size animation |
+| `ui.bounce` | Sine-based size bounce |
+| `ui.slide_up` | Vertical size expansion |
+| `ui.update_animations` | Advances active animations |
 
 ## Themes
 
-Access color palettes via `ui.Themes` or pass any theme name as a string to a component's `theme` parameter. Defaults to `"Catppuccin"` if an invalid name is provided.
+Pass a theme name as the `theme` argument. The module defines these names:
 
-**Available Themes:**
+- `Catppuccin`
+- `MonokaiPro`
+- `SolarizedDark`
+- `Monochrome`
+- `JadeHorizon`
+- `AbyssalSlate`
+- `VelvetPlum`
+- `AutumnTimber`
+- `EspressoCrema`
+- `WinterPine`
+- `NavyCream`
+- `RosewoodDawn`
+- `ChaosPeach`
 
-* `"Catppuccin"`
-* `"Emerald_Glass"`
-* `"Royal_Gold"`
-* `"Rose_Pine"`
-* `"Gruvbox_Dark"`
-* `"Crimson_Carbon"`
-* `"Phantom_Violet"`
-* `"Monochrome"`
-* `"Toxic_Lime"`
-* `"Frost_Light"`
+Each theme contains six `Color3` values:
 
-Each theme table contains six `Color3` keys: `MainBG`, `BoxFill`, `Outline`, `Accent`, `Selected`, and `Text`.
+| Key | Used for |
+| --- | --- |
+| `MainBG` | Main window background |
+| `BoxFill` | Component background |
+| `Outline` | Borders, accents, and slider knob |
+| `Accent` | Additional details and separators |
+| `Selected` | Selected checkbox/dropdown state |
+| `Text` | Text color |
+
+Access the palette directly with `ui.Themes.NavyCream`, for example.
 
 ## Components
 
 ### Rectangle
 
-Base container used for main windows and background panels. When `main_window = true`, it automatically expands its width by `50px` for the sidebar, plays a `0.5s` centered `pop` animation on first draw, and renders a sidebar divider with a cat icon. Any `Rectangle` created with `main_window = false` is automatically registered as a child and moves with the main window when dragged.
+Creates a rectangle. Set `main_window` to `true` for the primary window. The main window expands its width by 50 pixels on its first draw, plays a centered pop animation, and draws the sidebar divider and cat graphic. A main window is marked draggable.
 
 ```luau
-ui.Rectangle.new(size: Vector2, position: Vector2, opacity: number, filled: boolean, outlined: boolean, theme: string, roundness: number, thickness: number, main_window: boolean, title: string?)
-
+ui.Rectangle.new(
+    size: Vector2,
+    position: Vector2,
+    opacity: number,
+    filled: boolean,
+    outlined: boolean,
+    theme: string,
+    roundness: number,
+    thickness: number,
+    main_window: boolean,
+    title: string?
+)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `size` | `Vector2` | Width and height of the rectangle |
-| `position` | `Vector2` | Top-left screen position |
-| `opacity` | `number` | Opacity (`0`–`1`) |
-| `filled` | `boolean` | Draws a filled background when `true` |
-| `outlined` | `boolean` | Draws a border outline when `true` |
-| `theme` | `string` | Theme name from `ui.Themes` |
-| `roundness` | `number` | Corner rounding radius |
-| `thickness` | `number` | Border and divider line thickness |
-| `main_window` | `boolean` | Enables dragging, sidebar layout, `MainBG` color, and pop-in animation |
-| `title` | `string?` | Optional header title with horizontal divider line |
+| Argument | Meaning |
+| --- | --- |
+| `size` | Rectangle dimensions |
+| `position` | Top-left screen position |
+| `opacity` | Opacity value |
+| `filled` | Whether to draw a filled rectangle |
+| `outlined` | Whether to draw an outline |
+| `theme` | Theme name |
+| `roundness` | Corner radius |
+| `thickness` | Outline/divider thickness |
+| `main_window` | Enables main-window behavior when true |
+| `title` | Optional title displayed in the header |
 
-**Methods & Properties:**
+**Methods and properties**
 
-* `rect:Draw()` — Renders the rectangle, optional title header, and sidebar divider/icon.
-* `rect.animated: boolean` — `true` once the main window's initial `pop` animation finishes.
-* `rect.draggable: boolean` — `true` for main windows.
+- `rectangle:Draw()` — draws the rectangle.
+- `rectangle.animated` — becomes true after the main window's initial animation completes.
+- `rectangle.draggable` — true for a main window.
+- `rectangle.position`, `rectangle.size`, `rectangle.theme` — mutable component properties.
 
 ### TextBox
 
-A styled rectangle with left-padded text rendered inside.
+Draws text over a styled rectangle. `centered` is an optional final argument in the uploaded module.
 
 ```luau
-ui.TextBox.new(size_text: number, size_box: Vector2, position: Vector2, opacity_box: number, opacity_text: number, filled: boolean, outlined: boolean, outlined_text: boolean, roundness: number, thickness: number, theme: string, text: string)
-
+ui.TextBox.new(
+    size_text: number,
+    size_box: Vector2,
+    position: Vector2,
+    opacity_box: number,
+    opacity_text: number,
+    filled: boolean,
+    outlined: boolean,
+    outlined_text: boolean,
+    roundness: number,
+    thickness: number,
+    theme: string,
+    text: string,
+    centered: boolean?
+)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `size_text` | `number` | Font size |
-| `size_box` | `Vector2` | Box width and height |
-| `position` | `Vector2` | Top-left screen position |
-| `opacity_box` | `number` | Background opacity (`0`–`1`) |
-| `opacity_text` | `number` | Text opacity (`0`–`1`) |
-| `filled` | `boolean` | Draws a filled background |
-| `outlined` | `boolean` | Draws a box border |
-| `outlined_text` | `boolean` | Uses `DrawingImmediate.OutlinedText` when `true` |
-| `roundness` | `number` | Corner rounding radius |
-| `thickness` | `number` | Border thickness |
-| `theme` | `string` | Theme name from `ui.Themes` |
-| `text` | `string` | Displayed text |
+| Argument | Meaning |
+| --- | --- |
+| `size_text` | Font size |
+| `size_box` | Background dimensions |
+| `position` | Top-left screen position |
+| `opacity_box` | Background opacity |
+| `opacity_text` | Text opacity |
+| `filled` | Whether the background is filled |
+| `outlined` | Whether the background has an outline |
+| `outlined_text` | Uses `DrawingImmediate.OutlinedText` when true |
+| `roundness` | Background corner radius |
+| `thickness` | Outline thickness |
+| `theme` | Theme name |
+| `text` | Text to display |
+| `centered` | Passes centered alignment to the regular text drawing call |
 
-**Methods:**
+**Methods and properties**
 
-* `textbox:Draw()` — Renders the box and text.
+- `textbox:Draw()` — draws the background and text.
+- `textbox.text` — displayed string.
+- `textbox.centered` — whether regular text drawing uses centered alignment.
 
 ### Button
 
-Clickable button with automatic hover shading, click `bounce` animation, optional text label, and callback execution.
+A clickable rectangle with optional text. Hovering changes its fill shade. Clicking plays a bounce animation and calls the callback.
 
 ```luau
-ui.Button.new(size: Vector2, position: Vector2, opacity: number, filled: boolean, outlined: boolean, theme: string, roundness: number, thickness: number, callback: (() -> ())?, text: string?)
-
+ui.Button.new(
+    size: Vector2,
+    position: Vector2,
+    opacity: number,
+    filled: boolean,
+    outlined: boolean,
+    theme: string,
+    roundness: number,
+    thickness: number,
+    callback: (() -> ())?,
+    text: string?
+)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `size` | `Vector2` | Button dimensions |
-| `position` | `Vector2` | Top-left screen position |
-| `opacity` | `number` | Opacity (`0`–`1`) |
-| `filled` | `boolean` | Draws a filled background |
-| `outlined` | `boolean` | Draws a border outline |
-| `theme` | `string` | Theme name from `ui.Themes` |
-| `roundness` | `number` | Corner rounding radius |
-| `thickness` | `number` | Border thickness |
-| `callback` | `(() -> ())?` | Function executed on click |
-| `text` | `string?` | Optional label (renders internally as a `TextBox` when provided) |
+| Argument | Meaning |
+| --- | --- |
+| `size` | Button dimensions |
+| `position` | Top-left screen position |
+| `opacity` | Opacity |
+| `filled` | Whether the button is filled |
+| `outlined` | Whether the button has an outline |
+| `theme` | Theme name |
+| `roundness` | Corner radius |
+| `thickness` | Outline thickness |
+| `callback` | Function called when clicked |
+| `text` | Optional button label |
 
-**Methods & Properties:**
+**Methods and properties**
 
-* `button:Draw()` — Renders the button.
-* `button:Clicked(pressed: boolean)` — Handles hover state, click detection, `bounce` animation, and fires `callback`.
-* `button.hovering: boolean` — `true` while the cursor is over the button.
+- `button:Draw()` — creates the backing rectangle/textbox if needed, then draws it.
+- `button:Clicked(pressed: boolean)` — updates hover state and handles click edges.
+- `button.hovering` — true while the mouse is over the button.
+- `button.activated` — toggled on each click.
 
 ### Checkbox
 
-Toggleable box that highlights with the theme's `Selected` color when active, plays a `bounce` animation on click, and passes its boolean state to `callback`.
+A clickable toggle that changes its state and selected fill color. The callback receives the new boolean state.
 
 ```luau
-ui.Checkbox.new(size: Vector2, position: Vector2, opacity: number, filled: boolean, outlined: boolean, theme: string, roundness: number, thickness: number, callback: ((state: boolean) -> ())?)
-
+ui.Checkbox.new(
+    size: Vector2,
+    position: Vector2,
+    opacity: number,
+    filled: boolean,
+    outlined: boolean,
+    theme: string,
+    roundness: number,
+    thickness: number,
+    callback: ((state: boolean) -> ())?
+)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `size` | `Vector2` | Checkbox dimensions |
-| `position` | `Vector2` | Top-left screen position |
-| `opacity` | `number` | Opacity (`0`–`1`) |
-| `filled` | `boolean` | Draws a filled background |
-| `outlined` | `boolean` | Draws a border outline |
-| `theme` | `string` | Theme name from `ui.Themes` |
-| `roundness` | `number` | Corner rounding radius |
-| `thickness` | `number` | Border thickness |
-| `callback` | `((state: boolean) -> ())?` | Fires with `true` or `false` when toggled |
-| `default` | `boolean?` | the starting state |
+| Argument | Meaning |
+| --- | --- |
+| `size` | Checkbox dimensions |
+| `position` | Top-left screen position |
+| `opacity` | Opacity |
+| `filled` | Whether the checkbox is filled |
+| `outlined` | Whether the checkbox has an outline |
+| `theme` | Theme name |
+| `roundness` | Corner radius |
+| `thickness` | Outline thickness |
+| `callback` | Called with `true` or `false` after a toggle |
 
-**Methods & Properties:**
+**Methods and properties**
 
-* `checkbox:Draw()` — Renders the checkbox.
-* `checkbox:Clicked(pressed: boolean)` — Updates hover/active state, plays `bounce`, and fires `callback(state)`.
-* `checkbox.state: boolean` — Current toggle state (`true` / `false`).
-* `checkbox.hovering: boolean` — `true` while the cursor is over the checkbox.
+- `checkbox:Draw()` — draws the checkbox.
+- `checkbox:Clicked(pressed: boolean)` — handles hover and click behavior.
+- `checkbox.state` — current boolean state.
+- `checkbox.activated` — current active state.
+- `checkbox.hovering` — true while hovered.
+
+**Implementation note:** although the constructor type marks `callback` optional, the current `Clicked` implementation calls it without checking for `nil`. Supply a callback when creating a checkbox unless the module is updated with a nil check.
 
 ### Dropdown
 
-Animated multi-select dropdown menu with a chevron indicator. The first element in `data` acts as the header; remaining elements slide open as selectable rows.
+An animated multi-select dropdown. The first string in `data` is the header; the remaining strings are selectable options. The menu animates option rows open and closed.
 
 ```luau
-ui.Dropdown.new(data: {string}, size: Vector2, position: Vector2, opacity: number, filled: boolean, outlined: boolean, theme: string, roundness: number, thickness: number)
-
+ui.Dropdown.new(
+    data: {string},
+    size: Vector2,
+    position: Vector2,
+    opacity: number,
+    filled: boolean,
+    outlined: boolean,
+    theme: string,
+    roundness: number,
+    thickness: number,
+    max: number?
+)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `data` | `{string}` | List of strings (`data[1]` is the header, `data[2..N]` are options) |
-| `size` | `Vector2` | Size of each row |
-| `position` | `Vector2` | Top-left screen position of the header |
-| `opacity` | `number` | Opacity (`0`–`1`) |
-| `filled` | `boolean` | Draws filled rows |
-| `outlined` | `boolean` | Draws row borders |
-| `theme` | `string` | Theme name from `ui.Themes` |
-| `roundness` | `number` | Corner rounding radius |
-| `thickness` | `number` | Border thickness |
+| Argument | Meaning |
+| --- | --- |
+| `data` | String array; `data[1]` is the header |
+| `size` | Dimensions of each row |
+| `position` | Top-left position of the header |
+| `opacity` | Row opacity |
+| `filled` | Whether rows are filled |
+| `outlined` | Whether rows have outlines |
+| `theme` | Theme name |
+| `roundness` | Row corner radius |
+| `thickness` | Outline thickness |
+| `max` | Maximum number of selected values; if omitted, the implementation sets it to `#data` |
 
-**Methods & Properties:**
+**Methods and properties**
 
-* `dropdown:Draw()` — Renders the header, chevron, and visible option rows.
-* `dropdown:Dropped(pressed: boolean): {string}` — Handles opening/closing animations, option selection, and returns `dropdown.chosen`.
-* `dropdown.chosen: {string}` — Array of currently selected option strings.
-* `dropdown.dropped: boolean` — `true` while the menu is expanded.
-* `dropdown.hovering: boolean` — `true` while hovering over the dropdown header.
+- `dropdown:Draw()` — draws the header, options, and chevron.
+- `dropdown:Dropped(pressed: boolean): {string}` — handles opening, closing, hover, and selection; returns the selected array.
+- `dropdown.chosen` — array of selected option strings.
+- `dropdown.dropped` — true while expanded.
+- `dropdown.hovering` — true while the header is hovered.
+- `dropdown.max` — maximum selection count.
+
+Example:
+
+```luau
+local dropdown = ui.Dropdown.new(
+    {"Choose theme", "NavyCream", "Monochrome"},
+    Vector2.new(180, 36),
+    Vector2.new(600, 600),
+    1, true, true, "NavyCream", 8, 2, 1
+)
+
+-- After ui.Tabs:Draw has updated the dropdown:
+local chosen_theme = dropdown.chosen[1]
+```
 
 ### Slider
 
-Draggable horizontal slider with a circular knob and active drag halo.
+A horizontal slider with a circular knob. The value is clamped to the configured minimum and maximum. The slider is dragged by clicking near its knob and holding the mouse button.
 
 ```luau
-ui.Slider.new(size: Vector2, position: Vector2, opacity: number, filled: boolean, outlined: boolean, theme: string, roundness: number, thickness: number, min: number, max: number, value: number?)
-
+ui.Slider.new(
+    size: Vector2,
+    position: Vector2,
+    opacity: number,
+    filled: boolean,
+    outlined: boolean,
+    theme: string,
+    roundness: number,
+    thickness: number,
+    min: number,
+    max: number,
+    value: number?
+)
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `size` | `Vector2` | Track width and height |
-| `position` | `Vector2` | Top-left screen position |
-| `opacity` | `number` | Opacity (`0`–`1`) |
-| `filled` | `boolean` | Draws a filled track |
-| `outlined` | `boolean` | Draws a track border |
-| `theme` | `string` | Theme name from `ui.Themes` |
-| `roundness` | `number` | Corner rounding radius |
-| `thickness` | `number` | Border thickness |
-| `min` | `number` | Minimum slider value |
-| `max` | `number` | Maximum slider value |
-| `value` | `number?` | Initial value (defaults to `min`) |
+| Argument | Meaning |
+| --- | --- |
+| `size` | Track dimensions |
+| `position` | Top-left track position |
+| `opacity` | Track/knob opacity |
+| `filled` | Whether the track is filled |
+| `outlined` | Whether the track has an outline |
+| `theme` | Theme name |
+| `roundness` | Track corner radius |
+| `thickness` | Track outline thickness |
+| `min` | Minimum value |
+| `max` | Maximum value |
+| `value` | Initial value; defaults to `min` |
 
-**Methods & Properties:**
+**Methods and properties**
 
-* `slider:Draw()` — Renders the slider track and knob.
-* `slider:Update(pressed: boolean, is_held: boolean, on_change: ((number) -> ())?)` — Handles knob dragging, renders the drag halo, updates `slider.value`, and fires `on_change(value)` when changed.
-* `slider:SetValue(new_value: number)` — Clamps and sets `slider.value`.
-* `slider:GetKnobInfo(): (Vector2, number)` — Returns the knob's center position and radius.
-* `slider.value: number` — Current slider value.
-* `slider.dragging: boolean` — `true` while the knob is being dragged.
+- `slider:Draw()` — draws the track, segment rectangles, and knob.
+- `slider:Update(pressed: boolean, is_held: boolean, on_change: ((number) -> ())?)` — starts/continues/stops dragging and optionally calls `on_change(value)` when the value changes.
+- `slider:SetValue(new_value: number)` — clamps and assigns the value.
+- `slider:GetKnobInfo(): (Vector2, number)` — returns the knob center and its radius.
+- `slider.value` — current numeric value.
+- `slider.dragging` — true while the knob is being dragged.
 
-### Tab & Tabs
+**Tab-manager note:** `ui.Tabs:Draw` calls `slider:Update(pressed, is_pressed)` with only the two input arguments. To use `on_change`, call `slider:Update` yourself with the callback, or modify the tab manager to forward one.
 
-Sidebar category system for organizing widgets into switchable pages.
+### Keybind
+
+A clickable keybind box. Click the box to enter capture mode, then press a key. `Keybind:Set()` ignores the left mouse button used to activate the control. `Keybind:Check()` sets `activated` for the first frame of a key press, rather than remaining true for every frame the key is held.
+
+```luau
+ui.Keybind.new(
+    text_size: number,
+    size: Vector2,
+    position: Vector2,
+    opacity: number,
+    filled: boolean,
+    outlined: boolean,
+    theme: string,
+    roundness: number,
+    thickness: number,
+    start_key: string?
+)
+```
+
+| Argument | Meaning |
+| --- | --- |
+| `text_size` | Font size for the displayed key |
+| `size` | Keybind box dimensions |
+| `position` | Top-left position |
+| `opacity` | Box and text opacity |
+| `filled` | Whether the box is filled |
+| `outlined` | Whether the box has an outline |
+| `theme` | Theme name |
+| `roundness` | Corner radius |
+| `thickness` | Outline thickness |
+| `start_key` | Optional initial key string |
+
+**Methods and properties**
+
+- `keybind:Draw()` — draws the box and current key label.
+- `keybind:Clicked(pressed: boolean)` — toggles key capture when clicked.
+- `keybind:Set()` — captures a key while capture mode is active.
+- `keybind:Check()` — checks the current key and updates `activated`.
+- `keybind.current_key` — currently assigned key string, or `"Not Set"`.
+- `keybind.clicked` — true while waiting for a key.
+- `keybind.activated` — true for the frame in which the assigned key transitions to pressed.
+- `keybind.hovering` — true while the mouse is over the keybind box.
+
+Example:
+
+```luau
+if keybind.activated then
+    print("Pressed:", keybind.current_key)
+end
+```
+
+The test script registers the keybind with a tab, so `ui.Tabs:Draw` calls `Draw`, `Clicked`, `Set`, and `Check` automatically.
+
+## Tabs
+
+Tabs group components. The manager draws all tab buttons and updates the components belonging to the active tab.
+
+### Create a tab
 
 ```luau
 ui.Tab.new(name: string, index: number, size: Vector2)
-
 ```
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Label displayed on the sidebar tab button |
-| `index` | `number` | 1-based vertical slot order and tab ID |
-| `size` | `Vector2` | Dimensions of the tab button |
-
-**`Tab` Methods:**
-
-* `tab:Register(main_window)` — Creates and positions the tab's sidebar `Button` relative to `main_window`.
-* `tab:Add(instance)` — Assigns a widget (`TextBox`, `Button`, `Checkbox`, `Dropdown`, `Slider`) to this tab.
-
-**`Tabs` Manager Methods & Properties:**
-
-* `ui.Tabs:Draw(pressed: boolean, is_pressed: boolean)` — Renders all tab buttons and draws/updates all widgets belonging to `ui.Tabs.active`.
-* `ui.Tabs.active: number` — Index of the currently active tab (defaults to `1`).
-* `ui.Tabs.list: {Tab}` — Array of all created `Tab` instances.
-
-## Helpers & Animations
-
-| Function | Description |
+| Argument | Meaning |
 | --- | --- |
-| `ui.drag(main_window)` | Drags `main_window` and all child components while left mouse is held. Call inside `RunService.Render`. |
-| `ui.hide(hide_key: string): boolean` | Returns `true` if `hide_key` (e.g., `"Ctrl"`) is currently pressed. |
-| `ui.linear(start_position, end_position, instance, duration)` | Smoothly interpolates `instance.position` from `start_position` to `end_position` over `duration` seconds. |
-| `ui.pop(end_size, instance, duration, start?, on_complete?)` | Animates `instance.size` from `start` (or current size) to `end_size` while keeping it centered, then runs `on_complete`. |
-| `ui.bounce(instance, duration, strength)` | Smoothly scales `instance.size` out by `strength` and back using a sine curve while staying centered. |
-| `ui.slide_up(instance, duration, on_complete?)` | Expands `instance.size.Y` from `1` to its target height over `duration` seconds, then runs `on_complete`. |
-| `ui.update_animations(dt)` | Advances all active animations and triggers `on_complete` callbacks. Must be called every frame in `RunService.Render`. |
+| `name` | Text shown on the sidebar button |
+| `index` | 1-based tab index |
+| `size` | Sidebar button dimensions |
 
+**Tab methods**
+
+- `tab:Register(main_window)` — creates the sidebar button using the main window's theme and layout.
+- `tab:Add(instance)` — adds a component to the tab's `instances` array.
+
+**Tabs manager**
+
+- `ui.Tabs:Draw(pressed: boolean, is_pressed: boolean)` — draws tab buttons, then draws and updates widgets in the active tab. It dispatches `Clicked`, `Dropped`, `Update`, `Set`, and `Check` methods when present.
+- `ui.Tabs.active` — active tab index; defaults to `1`.
+- `ui.Tabs.list` — array of created tabs.
+
+Example:
+
+```luau
+local first = ui.Tab.new("Main", 1, Vector2.new(100, 32))
+local second = ui.Tab.new("Other", 2, Vector2.new(100, 32))
+
+first:Register(window)
+second:Register(window)
+
+first:Add(button)
+second:Add(checkbox)
 ```
 
+## Helpers and animations
+
+### Dragging
+
+```luau
+ui.drag(main_window)
 ```
+
+Call while the left mouse button is held. The helper records the positions of registered children when dragging begins, then moves the main window and those children by the mouse delta. The main window's drag area is its rectangle.
+
+### Hide-key check
+
+```luau
+ui.hide(hide_key: string): boolean
+```
+
+Returns true when the supplied key string appears in `getpressedkeys()`. The test harness polls this helper and toggles a `hidden` state on a key-down edge.
+
+```luau
+local was_down = false
+
+task.spawn(function()
+    while task.wait(0.05) do
+        local is_down = ui.hide("Ctrl")
+        if is_down and not was_down then
+            hidden = not hidden
+        end
+        was_down = is_down
+    end
+end)
+```
+
+### Animations
+
+The animation helpers add entries to the module's animation list. Call `ui.update_animations(dt)` every frame to advance them.
+
+```luau
+ui.linear(start_position: Vector2, end_position: Vector2, instance, duration: number)
+ui.pop(end_size: Vector2, instance, duration: number, start_size: Vector2?, on_complete: (() -> ())?)
+ui.bounce(instance, duration: number, strength: number)
+ui.slide_up(instance, duration: number, on_complete: (() -> ())?)
+ui.update_animations(dt: number)
+```
+
+| Helper | Behavior |
+| --- | --- |
+| `linear` | Interpolates `instance.position` from start to end |
+| `pop` | Interpolates `instance.size` from a start size to an end size while adjusting position to keep it centered |
+| `bounce` | Scales the instance out and back using a sine curve |
+| `slide_up` | Expands the instance's height from 1 pixel to its current height |
+| `update_animations` | Advances active animations and invokes completion callbacks |
+
+## Test script notes
+
+The uploaded test script exercises:
+
+- A main window using the `NavyCream` theme.
+- A button and slider on the first tab.
+- A checkbox, theme dropdown, and keybind on the second tab.
+- Changing the window theme from the first selected dropdown option.
+- Printing the key name when the keybind activates.
+- Hiding/toggling the UI using the `"Ctrl"` key.
+- Drawing and updating animations from a render callback.
+
+The test script includes both the module implementation and a test section. If you split the files, keep the reusable class/helper definitions and `ui` exports in `Module.luau`; keep sample widget creation and the render loop in a separate test script.
+
+## Current implementation caveats
+
+These are behavior notes from the uploaded source, not additional API promises:
+
+1. The module references an export table named `ui` but does not initialize it in the uploaded file. Add `local ui = {}` before assigning exports.
+2. `Checkbox:Clicked` calls `self.callback(self.state)` without a nil check, so pass a callback.
+3. `ui.Tabs:Draw` does not forward an `on_change` callback to `Slider:Update`.
+4. The module uses environment-provided helpers/APIs such as `getpressedkeys`, `isleftpressed`, and `DrawingImmediate`; they must exist in the runtime where the module is used.
+5. The test harness uses `RunService.Render`. Use the render event provided by your execution environment; the event name may differ between environments.
