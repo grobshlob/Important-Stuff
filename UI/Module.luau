@@ -515,7 +515,7 @@ function TextBox:Draw()
 	self.rect:Draw(1)
 	local text_pos = self.position + Vector2.new(8, 2)
 	if self.centered then 
-		text_pos = self.position + Vector2.new(self.size.X / 2, self.size.Y / 4)
+		text_pos = self.position + Vector2.new(self.size.X / 2, self.size.Y / 2 - self.size_text / 2)
 	end
 	if self.outlined_text then
 		DrawingImmediate.OutlinedText(text_pos, self.size_text, self.color_text, self.opacity_text, self.text, false, "Nunito")
