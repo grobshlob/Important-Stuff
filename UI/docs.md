@@ -90,6 +90,7 @@ local key_down = false
 --hide loop
 task.spawn(function()
 	while task.wait(0.05) do
+		if ui.Typing() then continue end
 		local is_pressed = ui.hide("Ctrl")
 		if is_pressed and not key_down then
 			hidden = not hidden
