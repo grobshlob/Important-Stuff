@@ -1,7 +1,7 @@
 [UI_Library_Documentation(1).md](https://github.com/user-attachments/files/35196856/UI_Library_Documentation.1.md)
-# UI Library Documentation
+# Barebones Documentation
 
-An immediate-mode Luau UI library built on `DrawingImmediate`. The module provides themed rectangles, text boxes, buttons, checkboxes, multi-select dropdowns, sliders, keybinds, tabs, dragging, and simple size/position animations.
+An immediate-mode Luau UI library built on `DrawingImmediate`. The module provides themed rectangles, text boxes, buttons, checkboxes, multi-select dropdowns, sliders, keybinds, tabs, dragging, and simple size/position animations. It focuses on providing lightweight building blocks while leaving much of the interface logic, customization, and behavior in the hands of the developer. Not meant to hand-feed the developer **everything** (just the fundamentals).
 
 This documentation is based on the uploaded module and its accompanying test script. The test script is an example harness; the reusable library ends before the test section.
 
