@@ -84,9 +84,22 @@ settings_tab:Add(keybind)
 
 -- Input tracking
 local was_pressed = false
+local hidden = false
+local key_down = false
 
+--hide loop
+task.spawn(function()
+	while task.wait(0.05) do
+		local is_pressed = ui.hide("Ctrl")
+		if is_pressed and not key_down then
+			hidden = not hidden
+		end
+		key_down = is_pressed
+	end
+end)
 -- Render loop
 RunService.Render:Connect(function(dt)
+	if hidden then return end
     local is_pressed = isleftpressed()
     local pressed = is_pressed and not was_pressed
 
