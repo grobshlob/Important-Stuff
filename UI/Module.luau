@@ -333,6 +333,48 @@ local Themes = {
 }
 
 
+
+local theme_instances = setmetatable({}, { __mode = "k" })
+
+local function register_theme_instance(instance)
+	theme_instances[instance] = true
+end
+
+local function refresh_theme(instance)
+	local theme = Themes[instance.theme]
+	if not theme or instance._applied_theme == instance.theme then
+		return
+	end
+
+	instance._applied_theme = instance.theme
+
+
+	if instance.color ~= nil then instance.color = theme.BoxFill end
+	if instance.outline_color ~= nil then instance.outline_color = theme.Outline end
+	if instance.activated_color ~= nil then instance.activated_color = theme.Selected end
+	if instance.selected_color ~= nil then instance.selected_color = theme.Selected end
+	if instance.text_color ~= nil then instance.text_color = theme.Text end
+	if instance.color_box ~= nil then instance.color_box = theme.BoxFill end
+	if instance.color_text ~= nil then instance.color_text = theme.Text end
+	if instance.og_col ~= nil then instance.og_col = theme.BoxFill end
+
+	local function update_child(child)
+		if type(child) == "table" and child.theme ~= nil then
+			child.theme = instance.theme
+			child._applied_theme = nil
+		end
+	end
+
+	update_child(instance.rect)
+	update_child(instance.textbox)
+	if instance.rects then
+		for _, child in ipairs(instance.rects) do
+			update_child(child)
+		end
+	end
+end
+
+
 --extra
 local pl = game.Players
 local lp = pl.LocalPlayer
@@ -351,6 +393,7 @@ function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlin
 	self.filled = filled
 	self.outlined = outlined
 	self.theme = theme
+	register_theme_instance(self)
 	self.roundness = roundness
 	self.thickness = thickness
 	self.main_window = main_window
@@ -371,6 +414,7 @@ function Rectangle.new(size: Vector2, position: Vector2, opacity, filled, outlin
 end
 
 function Rectangle:Draw()
+	refresh_theme(self)
 	if self.main_window and not self.resized then 
 		self.size += Vector2.new(50, 0) 
 		self.resized = true
@@ -389,12 +433,11 @@ function Rectangle:Draw()
 	--variables
 	local size = self.size
 	local position = self.position
-	local t = Themes[self.theme] or Themes.Catppuccin
 
-	local fill_col = self.color or (self.main_window and t.MainBG or t.BoxFill)
-	local outline_col = self.outline_color or t.Outline
-	local text_col = self.text_color or t.Text
-	local accent_col = t.Accent
+	local fill_col = self.color or (self.main_window and Themes[self.theme].MainBG or Themes[self.theme].BoxFill)
+	local outline_col = self.outline_color or Themes[self.theme].Outline
+	local text_col = self.text_color or Themes[self.theme].Text
+	local accent_col = Themes[self.theme].Accent
 
 	--filled rectangle
 	if self.filled then
@@ -427,7 +470,6 @@ TextBox.__index = TextBox
 
 function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacity_text, filled, outlined, outlined_text, roundness, thickness, theme: string, text, centered: boolean?)
 	local self = setmetatable({}, TextBox)
-	local t = Themes[theme]
 
 	self.size_text = size_text
 	self.size_box = size_box
@@ -441,9 +483,10 @@ function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacit
 	self.thickness = thickness
 	self.outlined_text = outlined_text
 	self.theme = theme
-	self.color_box = t.BoxFill
-	self.outline_color = t.Outline
-	self.color_text = t.Text
+	register_theme_instance(self)
+	self.color_box = Themes[self.theme].BoxFill
+	self.outline_color = Themes[self.theme].Outline
+	self.color_text = Themes[self.theme].Text
 	self.text = text
 	self.rect = Rectangle.new(
 		self.size_box,
@@ -463,6 +506,7 @@ function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacit
 end
 
 function TextBox:Draw()
+	refresh_theme(self)
 	self.rect.position = self.position
 	self.rect.size = self.size
 	self.rect.opacity = self.opacity_box
@@ -486,7 +530,7 @@ Button.__index = Button
 
 function Button.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?, text: string?)
 	local self = setmetatable({}, Button)
-	local t = Themes[theme] or Themes.Catppuccin
+
 
 	self.size = size
 	self.position = position
@@ -494,13 +538,14 @@ function Button.new(size, position: Vector2, opacity, filled, outlined, theme: s
 	self.filled = filled
 	self.outlined = outlined
 	self.theme = theme
-	self.color = t.BoxFill
-	self.outline_color = t.Outline
+	register_theme_instance(self)
+	self.color = Themes[self.theme].BoxFill
+	self.outline_color = Themes[self.theme].Outline
 	self.callback = callback
 	self.roundness = roundness
 	self.thickness = thickness
 	self.rect = nil
-	self.activated_color = t.Selected
+	self.activated_color = Themes[self.theme].Selected
 	self.hovering = false
 	self.activated = false
 	self.text = text
@@ -509,6 +554,7 @@ function Button.new(size, position: Vector2, opacity, filled, outlined, theme: s
 end
 
 function Button:Draw()
+	refresh_theme(self)
 	if not self.rect and not self.text then
 		self.rect = Rectangle.new(
 			self.size,
@@ -668,7 +714,6 @@ local Checkbox = {}
 Checkbox.__index = Checkbox
 function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?)
 	local self = setmetatable({}, Checkbox)
-	local t = Themes[theme] or Themes.Catppuccin
 
 	self.size = size
 	self.position = position
@@ -676,13 +721,14 @@ function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme:
 	self.filled = filled
 	self.outlined = outlined
 	self.theme = theme
-	self.color = t.BoxFill
-	self.outline_color = t.Outline
+	register_theme_instance(self)
+	self.color = Themes[self.theme].BoxFill
+	self.outline_color = Themes[self.theme].Outline
 	self.callback = callback
 	self.roundness = roundness
 	self.thickness = thickness
 	self.rect = nil
-	self.activated_color = t.Selected
+	self.activated_color = Themes[self.theme].Selected
 	self.hovering = false
 	self.activated = false
 	self.state = false
@@ -690,6 +736,7 @@ function Checkbox.new(size, position: Vector2, opacity, filled, outlined, theme:
 	return self
 end
 function Checkbox:Draw()
+	refresh_theme(self)
 	if not self.rect then
 		self.rect = Rectangle.new(
 			self.size,
@@ -752,7 +799,6 @@ Dropdown.__index = Dropdown
 
 function Dropdown.new(data: {string}, size, position, opacity, filled, outlined, theme: string, roundness, thickness, max)
 	local self = setmetatable({}, Dropdown)
-	local t = Themes[theme] or Themes.Catppuccin
 
 	self.data = data
 	self.size = size
@@ -762,12 +808,13 @@ function Dropdown.new(data: {string}, size, position, opacity, filled, outlined,
 	self.filled = filled
 	self.outlined = outlined
 	self.theme = theme
-	self.color = t.BoxFill
-	self.outline_color = t.Outline
+	register_theme_instance(self)
+	self.color = Themes[self.theme].BoxFill
+	self.outline_color = Themes[self.theme].Outline
 	self.roundness = roundness
 	self.thickness = thickness
-	self.selected_color = t.Selected
-	self.text_color = t.Text
+	self.selected_color = Themes[self.theme].Selected
+	self.text_color = Themes[self.theme].Text
 	self.hovering = false
 	self.dropped = false
 	if not max then
@@ -778,12 +825,13 @@ function Dropdown.new(data: {string}, size, position, opacity, filled, outlined,
 	self.rects = {}
 	self.in_position = {}
 	self.chosen = {}
-	self.og_col = t.BoxFill
+	self.og_col = Themes[self.theme].BoxFill
 	children[self] = true
 	return self
 end
 
 function Dropdown:Draw()
+	refresh_theme(self)
 	local amount_of_options = #self.data
 	if #self.rects ~= amount_of_options then
 		for i = 1, amount_of_options do
@@ -911,12 +959,13 @@ Slider.__index = Slider
 --(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, main_window, title: string?)
 function Slider.new(size: Vector2, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, min, max, value)
 	local self = setmetatable({}, Slider)
-self.size = size
+	self.size = size
 	self.position = position
 	self.opacity = opacity
 	self.filled = filled
 	self.outlined = outlined
 	self.theme = theme
+	register_theme_instance(self)
 	self.roundness = roundness
 	self.thickness = thickness
 	self.min = min
@@ -983,7 +1032,6 @@ end
 function Slider:Update(pressed: boolean, is_held: boolean, on_change: ((number) -> ())?)
 	local mpos = userinput:GetMouseLocation()
 	local knob_position, knob_radius = self:GetKnobInfo()
-	local t = Themes[self.theme]
 	if pressed then
 		local dist = vector.magnitude(mpos - knob_position)
 		if dist <= knob_radius + 2 then
@@ -996,7 +1044,7 @@ function Slider:Update(pressed: boolean, is_held: boolean, on_change: ((number) 
 	end
 
 	if self.dragging and is_held and self.size.X > 0 then
-		DrawingImmediate.FilledCircle(knob_position, knob_radius + 9, t.Outline, 0.3, 99)
+		DrawingImmediate.FilledCircle(knob_position, knob_radius + 9, Themes[self.theme].Outline, 0.3, 99)
 		local ratio = math.clamp((mpos.X - self.position.X) / self.size.X, 0, 1)
 		local new_value = self.min + (ratio * self.delta)
 		local prev_value = self.value
@@ -1009,10 +1057,10 @@ function Slider:Update(pressed: boolean, is_held: boolean, on_change: ((number) 
 end
 
 function Slider:Draw()
+	refresh_theme(self)
 	self.rect.position = self.position
 	self.rect:Draw()
 
-	local t = Themes[self.theme] or Themes.Catppuccin
 	for _, segment in ipairs(self.rects) do
 		segment:Draw()
 	end
@@ -1022,7 +1070,7 @@ function Slider:Draw()
 	DrawingImmediate.FilledCircle(
 		knob_position,
 		knob_radius,
-		t.Outline,
+		Themes[self.theme].Outline,
 		self.opacity,
 		99
 	)
@@ -1040,6 +1088,7 @@ function Keybind.new(text_size, size: Vector2, position: Vector2, opacity, fille
 	self.filled = filled
 	self.outlined = outlined
 	self.theme = theme
+	register_theme_instance(self)
 	self.roundness = roundness
 	self.thickness = thickness
 	self.start_key = start_key
@@ -1081,10 +1130,10 @@ function Keybind.new(text_size, size: Vector2, position: Vector2, opacity, fille
 end
 
 function Keybind:Draw()
-	local t = Themes[self.theme]
+	refresh_theme(self)
 	if self.clicked then
 		self.current_key = ""
-		DrawingImmediate.Line(self.rect.position + Vector2.new(8, self.size.Y - 5), self.rect.position + Vector2.new(self.size.X - 8, self.size.Y - 5), t.Accent, self.opacity, self.thickness, self.thickness)
+		DrawingImmediate.Line(self.rect.position + Vector2.new(8, self.size.Y - 5), self.rect.position + Vector2.new(self.size.X - 8, self.size.Y - 5), Themes[self.theme].Accent, self.opacity, self.thickness, self.thickness)
 	end
 	self.textbox.text = self.current_key
 	self.rect:Draw()
@@ -1169,5 +1218,18 @@ ui.update_animations = update_animations
 ui.bounce = bounce
 ui.pop = pop
 ui.Themes = Themes
+
+function ui.SetTheme(theme: string): boolean
+	if not Themes[theme] then
+		return false
+	end
+
+	for instance in pairs(theme_instances) do
+		instance.theme = theme
+		instance._applied_theme = nil
+	end
+
+	return true
+end
 
 return ui
