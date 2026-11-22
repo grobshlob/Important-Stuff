@@ -687,7 +687,7 @@ function WorkspaceRaycaster:Raycast(
 
 	return closest_hit
 end
-
+--[[
 local last_hit = nil
 
 task.spawn(function()
@@ -719,5 +719,5 @@ task.spawn(function()
 		print(os.clock() - start)
 	end
 end)
-
+]]
 return WorkspaceRaycaster
