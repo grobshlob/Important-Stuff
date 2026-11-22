@@ -990,7 +990,7 @@ function Slider.new(size: Vector2, position: Vector2, opacity, filled, outlined,
 		false
 	)
 	self.fill_rect = Rectangle.new(
-		Vector2.new(self.value * 2, size.Y),
+		size,
 		position,
 		opacity,
 		filled,
@@ -1077,12 +1077,13 @@ end
 
 function Slider:Draw()
 	refresh_theme(self)
+	local knob_position, _ = self:GetKnobInfo()
 	self.rect.position = self.position
+	local dist = vector.magnitude(knob_position - self.rect.position)
 	self.fill_rect.position = self.position
-	self.fill_rect.size = Vector2.new(self.value * 2, self.size.Y)
 	self.rect:Draw()
+	self.fill_rect.size = Vector2.new(dist, self.size.Y)
 	self.fill_rect:Draw()
-
 	for _, segment in ipairs(self.rects) do
 		segment:Draw()
 	end
