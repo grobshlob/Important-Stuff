@@ -2,7 +2,8 @@
 --!strict
 _G.cache = true
 
-local parts = {}
+local parts: any = nil
+local total_cached = 0
 local characters = table.create(50)
 local grouped = {}
 
@@ -58,230 +59,212 @@ local function cache()
 	return primitive_addresses
 end
 
-local sector_layouts = {
-	[1] = {1, 1},
-	[2] = {1, 2},
-	[3] = {2, 2},
-	[4] = {2, 4},
-}
+local max_parts = 256
+local max_depth = 8
+local min_size = 16
 
-local function create_subsectors(
-	center: Vector3,
-	quadrant_size: number,
-	subdivisions_x: number,
-	subdivisions_z: number
-)
-	local subsectors = {}
+local function overlaps(entry, min_x, min_z, max_x, max_z)
+    local position = entry.position3
 
-	local sub_size_x = quadrant_size / subdivisions_x
-	local sub_size_z = quadrant_size / subdivisions_z
-
-	local start_x = quadrant_size / 2 - sub_size_x / 2
-	local start_z = quadrant_size / 2 - sub_size_z / 2
-
-	local index = 1
-
-	for x = 0, subdivisions_x - 1 do
-		for z = 0, subdivisions_z - 1 do
-			local offset_x = -start_x + x * sub_size_x
-			local offset_z = -start_z + z * sub_size_z
-
-			subsectors["sector" .. index] = {
-				center = center + Vector3.new(offset_x, 0, offset_z),
-				size = Vector3.new(sub_size_x, 0, sub_size_z),
-				parts = {},
-			}
-
-			index += 1
-		end
-	end
-
-	return subsectors
+    return
+        position.X + entry.bounds_x >= min_x
+        and position.X - entry.bounds_x <= max_x
+        and position.Z + entry.bounds_z >= min_z
+        and position.Z - entry.bounds_z <= max_z
 end
 
-local function sort(primitive_addresses, optimization_level)
-	local total = #primitive_addresses
+local function build_node(entries, min_x, min_z, max_x, max_z, depth)
+    local center_x = (min_x + max_x) * 0.5
+    local center_z = (min_z + max_z) * 0.5
 
-	local opt_level = total > 20000 and 4 or optimization_level
-	opt_level = math.clamp(opt_level or 1, 1, 4)
+    local node = {
+        center = Vector3.new(center_x, 0, center_z),
+        size = Vector3.new(max_x - min_x, 0, max_z - min_z),
+        parts = entries,
+    }
 
-	local layout = sector_layouts[opt_level]
-	local subdivisions_x = layout[1]
-	local subdivisions_z = layout[2]
+    if #entries <= max_parts
+        or depth >= max_depth
+        or (max_x - min_x <= min_size and max_z - min_z <= min_size) then
+        return node
+    end
 
-	local root = get_root()
+    local bounds = {
+        {min_x, min_z, center_x, center_z},
+        {center_x, min_z, max_x, center_z},
+        {min_x, center_z, center_x, max_z},
+        {center_x, center_z, max_x, max_z},
+    }
 
-	if not root then
-		return {}
-	end
+    local children = {{}, {}, {}, {}}
 
-	local root_position = root.Position
-	local root_x = root_position.X
-	local root_z = root_position.Z
+    for i = 1, #entries do
+        local entry = entries[i]
 
-	local root_vector = vector.create(
-		root_x,
-		root_position.Y,
-		root_z
-	)
+        for j = 1, 4 do
+            local b = bounds[j]
 
-	local max_dist = 0
-	local cached_parts = table.create(total)
+            if overlaps(entry, b[1], b[2], b[3], b[4]) then
+                children[j][#children[j] + 1] = entry
+            end
+        end
+    end
 
-	for i = 1, total do
-		local success, entry = pcall(function()
-			local part_address = memory.readu64(
-				primitive_addresses[i],
-				primitive_to_part_offset
-			)
+    local largest = 0
 
-			local instance = pointer_to_userdata(part_address)
+    for i = 1, 4 do
+        largest = math.max(largest, #children[i])
+    end
 
-			if not instance or not instance:IsA("BasePart") then
-				return nil
-			end
+    if largest >= #entries then
+        return node
+    end
 
-			local cf = instance.CFrame
-			local position = cf.Position
+    node.parts = nil
+    node.children = {}
 
-			local native_position = vector.create(
-				position.X,
-				position.Y,
-				position.Z
-			)
+    for i = 1, 4 do
+        if #children[i] > 0 then
+            local b = bounds[i]
 
-			local size = instance.Size
+            node.children[#node.children + 1] = build_node(
+                children[i],
+                b[1],
+                b[2],
+                b[3],
+                b[4],
+                depth + 1
+            )
+        end
+    end
 
-			return {
-				instance = instance,
+    return node
+end
 
-				position = native_position,
-				position3 = position,
+local function sort(primitive_addresses)
+    local total = #primitive_addresses
+    local cached_parts = table.create(total)
 
-				size = vector.create(
-					size.X,
-					size.Y,
-					size.Z
-				),
+    for i = 1, total do
+        local success, entry = pcall(function()
+            local part_address = memory.readu64(
+                primitive_addresses[i],
+                primitive_to_part_offset
+            )
 
-				right = vector.create(
-					cf.RightVector.X,
-					cf.RightVector.Y,
-					cf.RightVector.Z
-				),
+            local instance = pointer_to_userdata(part_address)
 
-				up = vector.create(
-					cf.UpVector.X,
-					cf.UpVector.Y,
-					cf.UpVector.Z
-				),
+            if not instance or not instance:IsA("BasePart") then
+                return nil
+            end
 
-				look = vector.create(
-					cf.LookVector.X,
-					cf.LookVector.Y,
-					cf.LookVector.Z
-				),
-			}
-		end)
+            local cf = instance.CFrame
+            local position = cf.Position
+            local size = instance.Size
 
-		if not success or not entry then
-			continue
-		end
+            local half_x = size.X * 0.5
+            local half_y = size.Y * 0.5
+            local half_z = size.Z * 0.5
 
-		cached_parts[#cached_parts + 1] = entry
+            local bounds_x =
+                math.abs(cf.RightVector.X) * half_x
+                + math.abs(cf.UpVector.X) * half_y
+                + math.abs(cf.LookVector.X) * half_z
 
-		local distance = vector.magnitude(root_vector - entry.position)
+            local bounds_z =
+                math.abs(cf.RightVector.Z) * half_x
+                + math.abs(cf.UpVector.Z) * half_y
+                + math.abs(cf.LookVector.Z) * half_z
 
-		if distance > max_dist then
-			max_dist = distance
-		end
-	end
+            return {
+                instance = instance,
 
-	max_dist = math.max(max_dist, 1)
+                position = vector.create(
+                    position.X,
+                    position.Y,
+                    position.Z
+                ),
 
-	local quadrant_size = max_dist
-	local half_quad = quadrant_size / 2
+                position3 = position,
 
-	local quadrant_offsets = {
-		Sector_1 = Vector3.new(half_quad, 0, half_quad),
-		Sector_2 = Vector3.new(-half_quad, 0, half_quad),
-		Sector_3 = Vector3.new(half_quad, 0, -half_quad),
-		Sector_4 = Vector3.new(-half_quad, 0, -half_quad),
-	}
+                size = vector.create(
+                    size.X,
+                    size.Y,
+                    size.Z
+                ),
 
-	local sectors = {}
+                right = vector.create(
+                    cf.RightVector.X,
+                    cf.RightVector.Y,
+                    cf.RightVector.Z
+                ),
 
-	for name, quadrant_offset in pairs(quadrant_offsets) do
-		local quadrant_center = root_position + quadrant_offset
+                up = vector.create(
+                    cf.UpVector.X,
+                    cf.UpVector.Y,
+                    cf.UpVector.Z
+                ),
 
-		sectors[name] = {
-			center = quadrant_center,
-			children_amt = subdivisions_x * subdivisions_z,
-			size = Vector3.new(quadrant_size, 0, quadrant_size),
+                look = vector.create(
+                    cf.LookVector.X,
+                    cf.LookVector.Y,
+                    cf.LookVector.Z
+                ),
 
-			children = create_subsectors(
-				quadrant_center,
-				quadrant_size,
-				subdivisions_x,
-				subdivisions_z
-			),
-		}
-	end
+                bounds_x = bounds_x,
+                bounds_z = bounds_z,
+            }
+        end)
 
-	local sub_size_x = quadrant_size / subdivisions_x
-	local sub_size_z = quadrant_size / subdivisions_z
+        if not success or not entry then
+            continue
+        end
 
-	for i = 1, #cached_parts do
-		local entry = cached_parts[i]
-		local position = entry.position3
+        cached_parts[#cached_parts + 1] = entry
+    end
 
-		local dx = position.X - root_x
-		local dz = position.Z - root_z
+    if #cached_parts == 0 then
+        return nil, 0
+    end
 
-		local quadrant
+    local min_x = math.huge
+    local min_z = math.huge
+    local max_x = -math.huge
+    local max_z = -math.huge
 
-		if dx >= 0 then
-			quadrant = dz >= 0 and sectors.Sector_1 or sectors.Sector_3
-		else
-			quadrant = dz >= 0 and sectors.Sector_2 or sectors.Sector_4
-		end
+    for i = 1, #cached_parts do
+        local entry = cached_parts[i]
+        local position = entry.position3
 
-		local x_index = math.floor(math.abs(dx) / sub_size_x)
-		local z_index = math.floor(math.abs(dz) / sub_size_z)
+        min_x = math.min(min_x, position.X - entry.bounds_x)
+        min_z = math.min(min_z, position.Z - entry.bounds_z)
+        max_x = math.max(max_x, position.X + entry.bounds_x)
+        max_z = math.max(max_z, position.Z + entry.bounds_z)
+    end
 
-		if dx < 0 then
-			x_index = subdivisions_x - 1 - x_index
-		end
+    if max_x - min_x < 1 then
+        min_x -= 0.5
+        max_x += 0.5
+    end
 
-		if dz < 0 then
-			z_index = subdivisions_z - 1 - z_index
-		end
+    if max_z - min_z < 1 then
+        min_z -= 0.5
+        max_z += 0.5
+    end
 
-		x_index = math.clamp(x_index, 0, subdivisions_x - 1)
-		z_index = math.clamp(z_index, 0, subdivisions_z - 1)
-
-		local sector_index = x_index * subdivisions_z + z_index + 1
-		local sector = quadrant.children["sector" .. sector_index]
-
-		if sector then
-			sector.parts[#sector.parts + 1] = entry
-		end
-	end
-
-	return sectors
+    return build_node(
+        cached_parts,
+        min_x,
+        min_z,
+        max_x,
+        max_z,
+        0
+    ), #cached_parts
 end
 
 send_notification("Caching static parts. This may take a while.", "info")
 
-parts = sort(cache(), 4)
-
-local total_cached = 0
-
-for _, quadrant in pairs(parts) do
-	for _, sector in pairs(quadrant.children) do
-		total_cached += #sector.parts
-	end
-end
+parts, total_cached = sort(cache())
 
 print("Cached parts:", total_cached)
 send_notification("Done", "info")
@@ -401,7 +384,8 @@ local function cast(
 	params,
 	ray_length,
 	closest_hit,
-	min_dist
+	min_dist,
+	seen
 )
 	local filter = params and params.FilterDescendantsInstances
 
@@ -411,6 +395,14 @@ local function cast(
 
 		if not part or not part.Parent then
 			continue
+		end
+
+		if seen and seen[part] then
+			continue
+		end
+
+		if seen then
+			seen[part] = true
 		end
 
 		if part.Transparency >= 1 then
@@ -478,109 +470,155 @@ local function cast(
 end
 
 local function intersects_sector(
-	origin: vector,
-	direction: vector,
-	center: Vector3,
-	size: Vector3,
-	max_t: number
-): boolean
+    origin: vector,
+    direction: vector,
+    center: Vector3,
+    size: Vector3,
+    max_t: number
+): number?
 
-	local half = size * 0.5
+    local half = size * 0.5
 
-	local min_x = center.X - half.X
-	local max_x = center.X + half.X
-	local min_z = center.Z - half.Z
-	local max_z = center.Z + half.Z
+    local min_x = center.X - half.X
+    local max_x = center.X + half.X
+    local min_z = center.Z - half.Z
+    local max_z = center.Z + half.Z
 
-	local t_min = 0
-	local t_max = max_t
+    local t_min = 0
+    local t_max = max_t
 
-	local ox, oz = origin.x, origin.z
-	local dx, dz = direction.x, direction.z
+    local ox, oz = origin.x, origin.z
+    local dx, dz = direction.x, direction.z
 
-	if math.abs(dx) < 1e-8 then
-		if ox < min_x or ox > max_x then
-			return false
-		end
-	else
-		local t1 = (min_x - ox) / dx
-		local t2 = (max_x - ox) / dx
+    if math.abs(dx) < 1e-8 then
+        if ox < min_x or ox > max_x then
+            return nil
+        end
+    else
+        local t1 = (min_x - ox) / dx
+        local t2 = (max_x - ox) / dx
 
-		if t1 > t2 then
-			t1, t2 = t2, t1
-		end
+        if t1 > t2 then
+            t1, t2 = t2, t1
+        end
 
-		t_min = math.max(t_min, t1)
-		t_max = math.min(t_max, t2)
-	end
+        t_min = math.max(t_min, t1)
+        t_max = math.min(t_max, t2)
 
-	if math.abs(dz) < 1e-8 then
-		if oz < min_z or oz > max_z then
-			return false
-		end
-	else
-		local t1 = (min_z - oz) / dz
-		local t2 = (max_z - oz) / dz
+        if t_min > t_max then
+            return nil
+        end
+    end
 
-		if t1 > t2 then
-			t1, t2 = t2, t1
-		end
+    if math.abs(dz) < 1e-8 then
+        if oz < min_z or oz > max_z then
+            return nil
+        end
+    else
+        local t1 = (min_z - oz) / dz
+        local t2 = (max_z - oz) / dz
 
-		t_min = math.max(t_min, t1)
-		t_max = math.min(t_max, t2)
-	end
+        if t1 > t2 then
+            t1, t2 = t2, t1
+        end
 
-	return t_min <= t_max
+        t_min = math.max(t_min, t1)
+        t_max = math.min(t_max, t2)
+
+        if t_min > t_max then
+            return nil
+        end
+    end
+
+    return t_min
 end
 
-local function cast_sectors(
-	sectors,
-	origin,
-	direction,
-	params,
-	ray_length,
-	closest_hit,
-	min_dist
+local function cast_quadtree(
+    node,
+    origin,
+    direction,
+    params,
+    ray_length,
+    closest_hit,
+    min_dist,
+    seen
 )
-	for _, quadrant in pairs(sectors) do
-		local max_t = math.min(1, min_dist / ray_length)
+    if not node then
+        return closest_hit, min_dist
+    end
 
-		if not intersects_sector(
-			origin,
-			direction,
-			quadrant.center,
-			quadrant.size,
-			max_t
-		) then
-			continue
-		end
+    local max_t = math.min(1, min_dist / ray_length)
 
-		for _, sector in pairs(quadrant.children) do
-			max_t = math.min(1, min_dist / ray_length)
+    local entry_t = intersects_sector(
+        origin,
+        direction,
+        node.center,
+        node.size,
+        max_t
+    )
 
-			if not intersects_sector(
-				origin,
-				direction,
-				sector.center,
-				sector.size,
-				max_t
-			) then
-				continue
-			end
+    if not entry_t then
+        return closest_hit, min_dist
+    end
 
-			closest_hit, min_dist = cast(
-				sector.parts,
-				origin,
-				direction,
-				params,
-				ray_length,
-				closest_hit,
-				min_dist
-			)
-		end
-	end
+    if not node.children then
+        return cast(
+            node.parts,
+            origin,
+            direction,
+            params,
+            ray_length,
+            closest_hit,
+            min_dist,
+            seen
+        )
+    end
 
-	return closest_hit, min_dist
+    local intersected = {}
+
+    for i = 1, #node.children do
+        local child = node.children[i]
+
+        local child_entry = intersects_sector(
+            origin,
+            direction,
+            child.center,
+            child.size,
+            math.min(1, min_dist / ray_length)
+        )
+
+        if child_entry then
+            intersected[#intersected + 1] = {
+                node = child,
+                entry = child_entry,
+            }
+        end
+    end
+
+    table.sort(intersected, function(a, b)
+        return a.entry < b.entry
+    end)
+
+    for i = 1, #intersected do
+        local child = intersected[i]
+
+        if child.entry > math.min(1, min_dist / ray_length) then
+            break
+        end
+
+        closest_hit, min_dist = cast_quadtree(
+            child.node,
+            origin,
+            direction,
+            params,
+            ray_length,
+            closest_hit,
+            min_dist,
+            seen
+        )
+    end
+
+    return closest_hit, min_dist
 end
 
 local WorkspaceRaycaster = {}
@@ -613,14 +651,15 @@ function WorkspaceRaycaster:Raycast(
 	end
 
 	if instance_type == "static_walls" then
-		closest_hit, min_dist = cast_sectors(
+		closest_hit, min_dist = cast_quadtree(
 			parts,
 			origin_vector,
 			direction_vector,
 			params,
 			ray_length,
 			closest_hit,
-			min_dist
+			min_dist,
+			{}
 		)
 	elseif instance_type == "characters" then
 		closest_hit, min_dist = cast(
@@ -648,7 +687,7 @@ function WorkspaceRaycaster:Raycast(
 
 	return closest_hit
 end
---[[
+
 local last_hit = nil
 
 task.spawn(function()
@@ -680,5 +719,5 @@ task.spawn(function()
 		print(os.clock() - start)
 	end
 end)
-]]
+
 return WorkspaceRaycaster
