@@ -1,4 +1,4 @@
-_G.cache = true --recommended
+--caching is forced
 local Workspace_raycast = loadstring(game:HttpGet("https://raw.githubusercontent.com/grobshlob/Important-Stuff/refs/heads/main/Raycast/Module.luau"))()
 
 local pl = game:GetService("Players")
@@ -9,13 +9,12 @@ local hrp = chara:FindFirstChild("HumanoidRootPart")
 
 --[[
 Workspace_raycast:Raycast(origin: Vector3, direction:Vector3, params: table, instance_type: string)
-instance_type is only if u cached the game
+
 
 options
 {
     "static_walls" --static walls
-    "characters" -- characters (temp down)
-    "grouped" --both static_walls and characters
+    "characters" -- characters
 }
 ]]
 
