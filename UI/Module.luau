@@ -679,16 +679,10 @@ function Tab:Add(instance)
 	table.insert(self.instances, instance)
 end
 
-function Tabs:Draw(pressed: boolean, is_pressed: boolean)
+function Tabs:Proccess(pressed, is_pressed)
 	for _, tab in ipairs(Tabs.list) do
-		if tab.button then
-			tab.button:Draw()
-			tab.button:Clicked(pressed)
-		end
-
 		if tab.index == Tabs.active then
 			for _, child in ipairs(tab.instances) do
-				child:Draw()
 
 				if child.Clicked then
 					child:Clicked(pressed)
@@ -709,6 +703,20 @@ function Tabs:Draw(pressed: boolean, is_pressed: boolean)
 				if child.Check then
 					child:Check()
 				end
+			end
+		end
+	end
+end
+function Tabs:Draw(pressed: boolean, is_pressed: boolean)
+	for _, tab in ipairs(Tabs.list) do
+		if tab.button then
+			tab.button:Draw()
+			tab.button:Clicked(pressed)
+		end
+
+		if tab.index == Tabs.active then
+			for _, child in ipairs(tab.instances) do
+				child:Draw()
 			end
 		end
 	end
