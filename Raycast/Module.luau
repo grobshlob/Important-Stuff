@@ -4,7 +4,7 @@ _G.cache = true
 
 local parts: any = nil
 local total_cached = 0
-local characters = table.create(50)
+local characters_parts = table.create(50)
 local grouped = {}
 
 local Players = game:GetService("Players")
@@ -34,6 +34,18 @@ end
 
 local function to_vector3(v: vector): Vector3
 	return Vector3.new(v.x, v.y, v.z)
+end
+
+local function is_character(part)
+	for _, player in Players:GetChildren() do
+		local character = player.Character
+
+		if character and part:IsDescendantOf(character) then
+			return true
+		end
+	end
+
+	return false
 end
 
 local function cache()
@@ -157,6 +169,10 @@ local function sort(primitive_addresses)
             if not instance or not instance:IsA("BasePart") then
                 return nil
             end
+            
+            if is_character(instance) then
+                return nil
+            end
 
             local cf = instance.CFrame
             local position = cf.Position
@@ -261,6 +277,40 @@ local function sort(primitive_addresses)
         0
     ), #cached_parts
 end
+
+local function update_characters()
+	table.clear(characters_parts)
+
+	for _, player in Players:GetChildren() do
+		local character = player.Character
+
+		if not character then
+			continue
+		end
+
+		for _, instance in character:GetDescendants() do
+			if not instance:IsA("BasePart") or not instance.CanQuery then
+				continue
+			end
+
+			local cf = instance.CFrame
+			local position = cf.Position
+			local size = instance.Size
+
+			table.insert(characters_parts, {
+				instance = instance,
+
+				position = vector.create(position.X, position.Y, position.Z),
+				size = vector.create(size.X, size.Y, size.Z),
+
+				right = vector.create(cf.RightVector.X, cf.RightVector.Y, cf.RightVector.Z),
+				up = vector.create(cf.UpVector.X, cf.UpVector.Y, cf.UpVector.Z),
+				look = vector.create(cf.LookVector.X, cf.LookVector.Y, cf.LookVector.Z),
+			})
+		end
+	end
+end
+
 
 send_notification("Caching static parts. This may take a while.", "info")
 
@@ -662,8 +712,9 @@ function WorkspaceRaycaster:Raycast(
 			{}
 		)
 	elseif instance_type == "characters" then
+        update_characters()
 		closest_hit, min_dist = cast(
-			characters,
+			characters_parts,
 			origin_vector,
 			direction_vector,
 			params,
