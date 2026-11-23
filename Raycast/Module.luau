@@ -289,7 +289,7 @@ local function update_characters()
 		end
 
 		for _, instance in character:GetDescendants() do
-			if not instance:IsA("BasePart") or not instance.CanQuery then
+			if not instance:IsA("BasePart") then
 				continue
 			end
 
