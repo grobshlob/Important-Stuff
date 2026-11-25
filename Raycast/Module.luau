@@ -20,7 +20,7 @@ local prim_main = offsets.Primitive
 local world_offset = offsets.Workspace.World
 local prim_holder_offset = offsets.World.Primitives
 
-local primitive_to_part_offset = 0x220
+local primitive_to_part_offset = 0x218
 
 local function get_root()
 	local character = lp.Character
