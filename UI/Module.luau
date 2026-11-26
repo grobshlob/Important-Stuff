@@ -476,7 +476,7 @@ function TextBox.new(size_text, size_box, position: Vector2, opacity_box, opacit
 	local self = setmetatable({}, TextBox)
 
 	self.size_text = size_text
-	self.size_box = size_box
+	self.size_box = DrawingImmediate.GetTextBounds("Nunito", self.size_text, text)
 	self.size = size_box
 	self.position = position
 	self.opacity_box = opacity_box
@@ -517,7 +517,7 @@ function TextBox:Draw()
 	self.rect.color = self.color_box
 	self.rect.outline_color = self.outline_color
 	self.rect:Draw(1)
-	local text_pos = self.position + Vector2.new(8, 2)
+	local text_pos = self.position + Vector2.new(10, 4)
 	if self.centered then 
 		text_pos = self.position + Vector2.new(self.size.X / 2, self.size.Y / 2 - self.size_text / 2)
 	end
@@ -532,7 +532,7 @@ end
 local Button = {}
 Button.__index = Button
 
-function Button.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?, text: string?)
+function Button.new(size, position: Vector2, opacity, filled, outlined, theme: string, roundness, thickness, callback: (() -> ())?, text: string?, centered: boolean?)
 	local self = setmetatable({}, Button)
 
 
@@ -554,6 +554,7 @@ function Button.new(size, position: Vector2, opacity, filled, outlined, theme: s
 	self.hovering = false
 	self.activated = false
 	self.text = text
+	self.centered = centered or false
 	children[self] = true
 	return self
 end
@@ -586,7 +587,8 @@ function Button:Draw()
 			self.roundness,
 			self.thickness,
 			self.theme,
-			self.text
+			self.text,
+			self.centered
 		)
 	end
 	self.rect:Draw(1)
@@ -670,7 +672,8 @@ function Tab:Register(main_window)
 			function()
 				Tabs.active = self.index
 			end,
-			self.name
+			self.name,
+			true
 		)
 	end
 end
@@ -679,17 +682,6 @@ function Tab:Add(instance)
 	table.insert(self.instances, instance)
 end
 
-function Tabs:Proccess(pressed, is_pressed)
-	for _, tab in ipairs(Tabs.list) do
-		if tab.index == Tabs.active then
-			for _, child in ipairs(tab.instances) do
-				if child.Check then
-					child:Check()
-				end
-			end
-		end
-	end
-end
 function Tabs:Draw(pressed: boolean, is_pressed: boolean)
 	for _, tab in ipairs(Tabs.list) do
 		if tab.button then
@@ -700,6 +692,7 @@ function Tabs:Draw(pressed: boolean, is_pressed: boolean)
 		if tab.index == Tabs.active then
 			for _, child in ipairs(tab.instances) do
 				child:Draw()
+
 				if child.Clicked then
 					child:Clicked(pressed)
 				end
@@ -714,6 +707,10 @@ function Tabs:Draw(pressed: boolean, is_pressed: boolean)
 
 				if child.Set then
 					child:Set()
+				end
+
+				if child.Check then
+					child:Check()
 				end
 			end
 		end
@@ -910,7 +907,7 @@ function Dropdown:Dropped(pressed)
 	for i = 1, #self.rects do
 		local box = self.rects[i]
 		local pos = box.position
-		local size = box.size_box
+		local size = self.size
 
 		local hovering =
 			mpos.X >= pos.X and mpos.Y >= pos.Y
@@ -1006,7 +1003,7 @@ function Slider.new(size: Vector2, position: Vector2, opacity, filled, outlined,
 		thickness,
 		false,
 		_,
-		true
+		Themes[theme].Accent
 	)
 	children[self.rect] = nil
 	children[self.fill_rect] = nil
@@ -1090,6 +1087,7 @@ function Slider:Draw()
 	self.rect:Draw()
 	self.fill_rect.size = Vector2.new(dist, self.size.Y)
 	self.fill_rect:Draw()
+
 	for _, segment in ipairs(self.rects) do
 		segment:Draw()
 	end
@@ -1229,6 +1227,7 @@ function hide(hide_key: string)
 	end
 	return false
 end
+
 
 ui.Keybind = Keybind
 ui.Slider = Slider
