@@ -683,23 +683,6 @@ function Tabs:Proccess(pressed, is_pressed)
 	for _, tab in ipairs(Tabs.list) do
 		if tab.index == Tabs.active then
 			for _, child in ipairs(tab.instances) do
-
-				if child.Clicked then
-					child:Clicked(pressed)
-				end
-
-				if child.Dropped then
-					child:Dropped(pressed)
-				end
-
-				if child.Update then
-					child:Update(pressed, is_pressed)
-				end
-
-				if child.Set then
-					child:Set()
-				end
-
 				if child.Check then
 					child:Check()
 				end
@@ -717,6 +700,21 @@ function Tabs:Draw(pressed: boolean, is_pressed: boolean)
 		if tab.index == Tabs.active then
 			for _, child in ipairs(tab.instances) do
 				child:Draw()
+				if child.Clicked then
+					child:Clicked(pressed)
+				end
+
+				if child.Dropped then
+					child:Dropped(pressed)
+				end
+
+				if child.Update then
+					child:Update(pressed, is_pressed)
+				end
+
+				if child.Set then
+					child:Set()
+				end
 			end
 		end
 	end
