@@ -102,7 +102,7 @@ task.spawn(function()
 end)
 -- Render loop
 RunService.RenderUnrestricted:Connect(function(dt)
-	ui.Tabs:Proccess(pressed, is_pressed)
+	ui.Tabs:Proccess() --checks if a key thats binded is pressed
 	if hidden then return end
     local is_pressed = isleftpressed()
     local pressed = is_pressed and not was_pressed
